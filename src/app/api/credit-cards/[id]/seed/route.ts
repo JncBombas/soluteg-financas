@@ -14,12 +14,12 @@ const SeedSchema = z.object({
   })).optional()
 });
 
-export async function POST(request: Request, context: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: "Não Autorizado" }, { status: 401 });
 
-    const { id } = await context.params;
+    const { id } = await params;
 
     const card = await prisma.creditCard.findUnique({ where: { id } });
     if (!card) return NextResponse.json({ error: "Cartão não encontrado" }, { status: 404 });
