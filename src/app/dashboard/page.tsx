@@ -8,9 +8,9 @@ import { TransactionModal } from "@/components/TransactionModal";
 
 export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [monthTransactions, setMonthTransactions] = useState([]);
-  const [yearTransactions, setYearTransactions] = useState([]);
-  const [pendingTransactions, setPendingTransactions] = useState([]);
+  const [monthTransactions, setMonthTransactions] = useState<any[]>([]);
+  const [yearTransactions, setYearTransactions] = useState<any[]>([]);
+  const [pendingTransactions, setPendingTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

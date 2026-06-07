@@ -40,8 +40,8 @@ export async function GET(req: Request) {
     });
 
     const accountsWithBalance = await Promise.all(
-      accounts.map(async (acc) => {
-        const currentBalance = await calcularSaldo(acc.id, acc.initialBalance);
+      accounts.map(async (acc: any) => {
+        const currentBalance = await calcularSaldo(acc.id, Number(acc.initialBalance));
         return { ...acc, currentBalance };
       })
     );

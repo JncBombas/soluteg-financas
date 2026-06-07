@@ -266,7 +266,7 @@ export default function ReportsPage() {
                       <Pie data={categoryPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} innerRadius={60} paddingAngle={2}>
                         {categoryPieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
                       </Pie>
-                      <Tooltip formatter={(v: number) => `R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`} 
+                      <Tooltip formatter={(v: any) => `R$ ${Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2})}`} 
                                contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', borderRadius: '8px' }} />
                       <Legend />
                     </PieChart>
@@ -289,7 +289,7 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                       <XAxis dataKey="mes" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
                       <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
-                      <Tooltip formatter={(v: number) => `R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`} 
+                      <Tooltip formatter={(v: any) => `R$ ${Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2})}`} 
                                contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', borderRadius: '8px' }} />
                       <Legend />
                       <Bar dataKey="receitas" fill="var(--success)" name="Receitas" radius={[4, 4, 0, 0]} />
@@ -320,7 +320,7 @@ export default function ReportsPage() {
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
                       <XAxis dataKey="data" stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
                       <YAxis stroke="var(--text-muted)" tick={{fill: 'var(--text-muted)'}} />
-                      <Tooltip formatter={(v: number) => `R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`} 
+                      <Tooltip formatter={(v: any) => `R$ ${Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2})}`} 
                                contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', borderRadius: '8px' }} />
                       <Area type="monotone" dataKey="saldo" stroke="var(--accent-primary)" strokeWidth={3} fill="url(#saldoGradient)" name="Saldo Acumulado" />
                     </AreaChart>
@@ -343,7 +343,7 @@ export default function ReportsPage() {
                       <Pie data={methodPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} innerRadius={60} paddingAngle={2}>
                         {methodPieData.map((_, i) => <Cell key={i} fill={CHART_COLORS[(i + 3) % CHART_COLORS.length]} />)}
                       </Pie>
-                      <Tooltip formatter={(v: number) => `R$ ${v.toLocaleString('pt-BR',{minimumFractionDigits:2})}`} 
+                      <Tooltip formatter={(v: any) => `R$ ${Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2})}`} 
                                contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)', borderRadius: '8px' }} />
                       <Legend />
                     </PieChart>

@@ -62,7 +62,7 @@ export async function GET(req: Request) {
     if (count === 0) {
       const categoriesToCreate = DEFAULT_CATEGORIES.map(cat => ({
         ...cat,
-        userId: session.user.id
+        userId: session.user!.id as string
       }));
 
       await prisma.category.createMany({

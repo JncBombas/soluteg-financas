@@ -95,7 +95,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Transferência não encontrada" }, { status: 404 });
     }
 
-    const allBelongToUser = transactions.every(t => t.userId === session.user.id);
+    const allBelongToUser = transactions.every(t => t.userId === session.user!.id);
     if (!allBelongToUser) {
       return NextResponse.json({ error: "Sem permissão para deletar esta transferência" }, { status: 403 });
     }

@@ -105,7 +105,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Dados inválidos", details: error.errors }, { status: 400 });
+      return NextResponse.json({ error: "Dados inválidos", details: error.issues }, { status: 400 });
     }
     console.error("ERRO PUT TRANSACTION:", error);
     return NextResponse.json({ error: "Erro Interno" }, { status: 500 });
