@@ -19,6 +19,7 @@ export const NewTransactionSchema = z.object({
   fee: z.number().optional(),
   creditCardId: z.string().optional(),
   bankAccountId: z.string().optional(),
+  context: z.enum(["PF", "PJ"]).default("PF"),
   transactionMode: z.enum(["SINGLE", "INSTALLMENT", "RECURRING"]),
   installments: z.number().int().min(2).max(72).optional(),
   dueDay: z.number().int().min(1).max(28).optional(),
@@ -38,6 +39,7 @@ export const UpdateTransactionSchema = z.object({
   fee: z.number().optional(),
   creditCardId: z.string().nullable().optional(),
   bankAccountId: z.string().nullable().optional(),
+  context: z.enum(["PF", "PJ"]).optional(),
   editScope: z.enum(["SINGLE", "THIS_AND_FOLLOWING", "ALL"]).optional(),
 });
 
@@ -57,6 +59,10 @@ export const BankAccountSchema = z.object({
   initialBalance: z.number().default(0),
   color: z.string().optional(),
   icon: z.string().optional(),
+  context: z.enum(["PF", "PJ"]).default("PF"),
+  servicePackageName: z.string().optional(),
+  servicePackageAmount: z.number().min(0).optional(),
+  overdraftLimit: z.number().min(0).optional(),
 });
 
 export const UpdateBankAccountSchema = BankAccountSchema.partial();
@@ -69,6 +75,7 @@ export const CreditCardSchema = z.object({
   dueDay: z.number().int().min(1).max(28),
   limit: z.number().positive(),
   color: z.string().optional(),
+  context: z.enum(["PF", "PJ"]).default("PF"),
 });
 
 export const UpdateCreditCardSchema = CreditCardSchema.partial();

@@ -21,13 +21,21 @@ async function calcularSaldo(accountId: string, initialBalance: number) {
   return initialBalance + somaIncome - somaExpense;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: "Não Autorizado" }, { status: 401 });
 
+    const { searchParams } = new URL(req.url);
+    const contextFilter = searchParams.get('context');
+
+    const whereClause: any = { 
+      userId: session.user.id,
+      ...(contextFilter && contextFilter !== 'ALL' ? { context: contextFilter } : {})
+    };
+
     const accounts = await prisma.bankAccount.findMany({
-      where: { userId: session.user.id },
+      where: whereClause,
       orderBy: { name: 'asc' }
     });
 

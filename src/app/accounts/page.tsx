@@ -3,6 +3,8 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, Loader2, X, Wallet } from "lucide-react";
+import { useFinanceContext } from "@/lib/useFinanceContext";
+import { TransferModal } from "@/components/TransferModal";
 
 interface BankAccountData {
   id: string;
@@ -13,6 +15,10 @@ interface BankAccountData {
   icon?: string;
   isActive: boolean;
   currentBalance: number;
+  context: string;
+  servicePackageName?: string | null;
+  servicePackageAmount?: number | string | null;
+  overdraftLimit?: number | string | null;
 }
 
 const ACCOUNT_TYPES = [
@@ -28,7 +34,8 @@ const PALETTE = [
 ];
 
 const initialForm = {
-  name: "", type: "CHECKING", initialBalance: "0", color: "#1a7a4a"
+  name: "", type: "CHECKING", initialBalance: "0", color: "#1a7a4a", context: "PF",
+  servicePackageName: "", servicePackageAmount: "", overdraftLimit: ""
 };
 
 export default function AccountsPage() {
@@ -41,14 +48,16 @@ export default function AccountsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState(initialForm);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const { context: globalContext } = useFinanceContext();
 
   useEffect(() => {
     fetchAccounts();
-  }, []);
+  }, [globalContext]);
 
   const fetchAccounts = async () => {
     try {
-      const res = await fetch("/api/bank-accounts");
+      const res = await fetch(`/api/bank-accounts?context=${globalContext}`);
       if (res.status === 401) {
         window.location.href = "/login";
         return;
@@ -63,7 +72,7 @@ export default function AccountsPage() {
   };
 
   const resetForm = () => {
-    setForm(initialForm);
+    setForm({...initialForm, context: globalContext === "ALL" ? "PF" : globalContext});
     setEditingAccount(null);
     setShowForm(false);
     setError(null);
@@ -74,7 +83,11 @@ export default function AccountsPage() {
       name: account.name,
       type: account.type,
       initialBalance: account.initialBalance.toString(),
-      color: account.color || PALETTE[5]
+      color: account.color || PALETTE[5],
+      context: account.context || "PF",
+      servicePackageName: account.servicePackageName || "",
+      servicePackageAmount: account.servicePackageAmount ? account.servicePackageAmount.toString() : "",
+      overdraftLimit: account.overdraftLimit ? account.overdraftLimit.toString() : ""
     });
     setEditingAccount(account);
     setShowForm(true);
@@ -88,12 +101,21 @@ export default function AccountsPage() {
       const url = editingAccount ? `/api/bank-accounts/${editingAccount.id}` : "/api/bank-accounts";
       const method = editingAccount ? "PUT" : "POST";
       
-      const payload = {
+      const payload: any = {
         name: form.name,
         type: form.type,
         initialBalance: parseFloat(form.initialBalance.replace(',', '.')),
-        color: form.color
+        color: form.color,
+        context: form.context
       };
+
+      if (form.servicePackageName) {
+        payload.servicePackageName = form.servicePackageName;
+        payload.servicePackageAmount = form.servicePackageAmount ? parseFloat(form.servicePackageAmount.replace(',', '.')) : 0;
+      }
+      if (form.overdraftLimit) {
+        payload.overdraftLimit = parseFloat(form.overdraftLimit.replace(',', '.'));
+      }
 
       const res = await fetch(url, {
         method,
@@ -143,10 +165,15 @@ export default function AccountsPage() {
     <DashboardLayout title="Contas Bancárias">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h2>Minhas Contas</h2>
-        <button className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
-          <Plus size={20} />
-          Adicionar Conta
-        </button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button className="btn-secondary" onClick={() => setIsTransferOpen(true)}>
+            ↔️ Transferir
+          </button>
+          <button className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+            <Plus size={20} />
+            Adicionar Conta
+          </button>
+        </div>
       </div>
 
       <div className="glass-card" style={{ marginBottom: '2rem', padding: '2rem', textAlign: 'center' }}>
@@ -171,6 +198,20 @@ export default function AccountsPage() {
       {showForm && (
         <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
           <h3 style={{ marginBottom: '1.5rem' }}>{editingAccount ? "Editar Conta" : "Nova Conta"}</h3>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Perfil:</label>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input type="radio" name="accContext" value="PF" checked={form.context === "PF"} onChange={e => setForm({...form, context: e.target.value})} style={{ accentColor: 'var(--accent-primary)' }} />
+                Pessoal (PF)
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input type="radio" name="accContext" value="PJ" checked={form.context === "PJ"} onChange={e => setForm({...form, context: e.target.value})} style={{ accentColor: 'var(--accent-primary)' }} />
+                Empresarial (PJ)
+              </label>
+            </div>
+          </div>
           
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
             <div>
@@ -211,6 +252,23 @@ export default function AccountsPage() {
                   }}
                 />
               ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Pacote de serviços (opcional)</label>
+              <input type="text" placeholder="Ex: Conta Digital Nubank" className="input-field" value={form.servicePackageName} onChange={e => setForm({...form, servicePackageName: e.target.value})} />
+            </div>
+            {form.servicePackageName && (
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Custo mensal do pacote (R$)</label>
+                <input type="number" min="0" step="0.01" placeholder="0,00" className="input-field" value={form.servicePackageAmount} onChange={e => setForm({...form, servicePackageAmount: e.target.value})} />
+              </div>
+            )}
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Limite de cheque especial (R$)</label>
+              <input type="number" min="0" step="0.01" placeholder="0,00" className="input-field" value={form.overdraftLimit} onChange={e => setForm({...form, overdraftLimit: e.target.value})} />
             </div>
           </div>
 
@@ -265,6 +323,25 @@ export default function AccountsPage() {
                     <span style={{ fontWeight: 'bold', fontSize: '1.8rem', color: balanceColor }}>
                       R$ {account.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </span>
+                    
+                    {account.servicePackageName && (
+                      <p style={{fontSize:'0.75rem', color:'var(--text-muted)', marginTop:'0.25rem'}}>
+                        📦 {account.servicePackageName}
+                        {Number(account.servicePackageAmount) > 0 ? ` — R$ ${Number(account.servicePackageAmount).toLocaleString('pt-BR',{minimumFractionDigits:2})}/mês` : ''}
+                      </p>
+                    )}
+
+                    {Number(account.overdraftLimit) > 0 && (
+                      <div style={{ marginTop: '0.5rem' }}>
+                        {account.currentBalance >= 0 ? (
+                          <span className="text-muted" style={{ fontSize: '0.8rem' }}>Cheque especial: R$ {Number(account.overdraftLimit).toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
+                        ) : Math.abs(account.currentBalance) <= Number(account.overdraftLimit) ? (
+                          <span style={{ background: '#F59E0B', color: '#fff', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem' }}>✓ No limite</span>
+                        ) : (
+                          <span style={{ background: 'var(--danger)', color: '#fff', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem' }}>⚠️ Acima do limite</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ marginTop: '1rem', fontSize: '0.8rem' }} className="text-muted">
@@ -305,6 +382,12 @@ export default function AccountsPage() {
           </div>
         </div>
       )}
+
+      <TransferModal
+        isOpen={isTransferOpen}
+        onClose={() => setIsTransferOpen(false)}
+        onSuccess={() => fetchAccounts()}
+      />
     </DashboardLayout>
   );
 }

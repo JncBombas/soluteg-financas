@@ -45,12 +45,15 @@ const DEFAULT_CATEGORIES = [
   { name: "Fornecedores", type: "EXPENSE", nature: "VARIABLE", context: "BUSINESS", group: "Serviços", isDefault: true }
 ];
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não Autorizado" }, { status: 401 });
     }
+
+    const { searchParams } = new URL(req.url);
+    const contextFilter = searchParams.get('context');
 
     const count = await prisma.category.count({
       where: { userId: session.user.id }
@@ -67,8 +70,12 @@ export async function GET() {
       });
     }
 
+    const whereClause: any = (contextFilter === 'PF' || contextFilter === 'PJ') 
+      ? { OR: [{ isDefault: true }, { context: contextFilter, userId: session.user.id }] }
+      : { OR: [{ isDefault: true }, { userId: session.user.id }] };
+
     const categories = await prisma.category.findMany({
-      where: { userId: session.user.id },
+      where: whereClause,
       orderBy: [
         { type: 'asc' },
         { context: 'asc' },

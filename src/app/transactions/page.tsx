@@ -17,6 +17,10 @@ const METHOD_LABELS: Record<string, string> = {
   PIX: "⚡ Pix", BOLETO: "🎫 Boleto", TRANSFER: "↔️ TED"
 };
 
+const hoje = new Date();
+const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
+const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
+
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,8 +34,8 @@ export default function TransactionsPage() {
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterMethod, setFilterMethod] = useState("");
-  const [filterDateFrom, setFilterDateFrom] = useState("");
-  const [filterDateTo, setFilterDateTo] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState(primeiroDia);
+  const [filterDateTo, setFilterDateTo] = useState(ultimoDia);
 
   const fetchTransactions = async () => {
     try {
@@ -116,6 +120,14 @@ export default function TransactionsPage() {
     setFilterType("");
     setFilterStatus("");
     setFilterMethod("");
+    setFilterDateFrom(primeiroDia);
+    setFilterDateTo(ultimoDia);
+  };
+
+  const clearAllFilters = () => {
+    setFilterType("");
+    setFilterStatus("");
+    setFilterMethod("");
     setFilterDateFrom("");
     setFilterDateTo("");
   };
@@ -176,9 +188,12 @@ export default function TransactionsPage() {
             </select>
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', gap: '0.5rem' }}>
           <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }} onClick={clearFilters}>
-            Limpar Filtros
+            Mês Atual
+          </button>
+          <button className="btn-secondary" style={{ padding: '0.4rem 1rem', fontSize: '0.85rem', opacity: 0.7, borderColor: 'var(--border-glass)' }} onClick={clearAllFilters}>
+            Limpar Tudo
           </button>
         </div>
       </div>

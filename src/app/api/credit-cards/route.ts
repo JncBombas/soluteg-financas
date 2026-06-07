@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { CreditCardSchema } from "@/lib/validations";
+import { nextBusinessDay } from "@/lib/businessDays";
 
 function getCicloAtual(closingDay: number) {
   const hoje = new Date();
@@ -38,13 +39,22 @@ async function calcularFaturaAtual(cardId: string, closingDay: number) {
   return sum._sum.amount || 0;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) return NextResponse.json({ error: "Não Autorizado" }, { status: 401 });
 
+    const { searchParams } = new URL(req.url);
+    const contextFilter = searchParams.get('context');
+
+    const whereClause: any = { 
+      userId: session.user.id, 
+      isActive: true,
+      ...(contextFilter && contextFilter !== 'ALL' ? { context: contextFilter } : {})
+    };
+
     const cards = await prisma.creditCard.findMany({
-      where: { userId: session.user.id, isActive: true },
+      where: whereClause,
       orderBy: { name: 'asc' }
     });
 
@@ -62,6 +72,7 @@ export async function GET() {
         } else {
           invoiceDueDate = new Date(ano, mes + 2, card.dueDay);
         }
+        invoiceDueDate = nextBusinessDay(invoiceDueDate);
         
         return { ...card, currentInvoice, invoiceDueDate };
       })

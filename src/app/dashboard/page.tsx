@@ -3,12 +3,14 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ArrowUpRight, ArrowDownRight, DollarSign, Plus, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { TransactionModal } from "@/components/TransactionModal";
 
 export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [transactions, setTransactions] = useState([]);
+  const [monthTransactions, setMonthTransactions] = useState([]);
+  const [yearTransactions, setYearTransactions] = useState([]);
+  const [pendingTransactions, setPendingTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,13 +19,41 @@ export default function DashboardPage() {
 
   const fetchTransactions = async () => {
     try {
-      const res = await fetch("/api/transactions");
-      if (res.status === 401) {
+      setLoading(true);
+      const hoje = new Date();
+      const anoAtual = hoje.getFullYear();
+      const mesAtual = hoje.getMonth();
+      const primeiroDiaMes = new Date(anoAtual, mesAtual, 1).toISOString().split('T')[0];
+      const ultimoDiaMes = new Date(anoAtual, mesAtual + 1, 0).toISOString().split('T')[0];
+      const primeiroDiaAno = `${anoAtual}-01-01`;
+      const ultimoDiaAno = `${anoAtual}-12-31`;
+
+      const hojeStr = hoje.toISOString().split('T')[0];
+      const hojeMais30 = new Date(hoje);
+      hojeMais30.setDate(hoje.getDate() + 30);
+      const hojeMais30Str = hojeMais30.toISOString().split('T')[0];
+
+      const [resMonth, resYear, resPending] = await Promise.all([
+        fetch(`/api/transactions?dateFrom=${primeiroDiaMes}&dateTo=${ultimoDiaMes}`),
+        fetch(`/api/transactions?dateFrom=${primeiroDiaAno}&dateTo=${ultimoDiaAno}`),
+        fetch(`/api/transactions?status=PENDING&dateFrom=${hojeStr}&dateTo=${hojeMais30Str}`)
+      ]);
+
+      if (resMonth.status === 401) {
         window.location.href = "/login";
         return;
       }
-      const data = await res.json();
-      setTransactions(Array.isArray(data) ? data : []);
+
+      const [dataMonth, dataYear, dataPending] = await Promise.all([
+        resMonth.json(), resYear.json(), resPending.json()
+      ]);
+
+      setMonthTransactions(Array.isArray(dataMonth) ? dataMonth : []);
+      setYearTransactions(Array.isArray(dataYear) ? dataYear : []);
+      
+      const pendings = Array.isArray(dataPending) ? dataPending : [];
+      pendings.sort((a: any, b: any) => new Date(a.dueDate || a.date).getTime() - new Date(b.dueDate || b.date).getTime());
+      setPendingTransactions(pendings.slice(0, 5) as any);
     } catch (error) {
       console.error("Erro ao buscar dados", error);
     } finally {
@@ -32,14 +62,23 @@ export default function DashboardPage() {
   };
 
   // Calculations
-  const incomes = transactions.filter((t: any) => t.type === "INCOME").reduce((acc, t: any) => acc + t.amount, 0);
-  const expenses = transactions.filter((t: any) => t.type === "EXPENSE").reduce((acc, t: any) => acc + t.amount, 0);
+  const incomes = monthTransactions.filter((t: any) => t.type === "INCOME").reduce((acc, t: any) => acc + t.amount, 0);
+  const expenses = monthTransactions.filter((t: any) => t.type === "EXPENSE").reduce((acc, t: any) => acc + t.amount, 0);
   const balance = incomes - expenses;
 
-  const chartData = [...transactions].reverse().map((t: any) => ({
-    name: new Date(t.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
-    valor: t.type === "INCOME" ? t.amount : -t.amount
-  }));
+  const hoje = new Date();
+  const nomeMes = hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const anoAtual = hoje.getFullYear();
+
+  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const chartData = meses.map(mes => ({ mes, receitas: 0, despesas: 0 }));
+
+  yearTransactions.forEach((t: any) => {
+    const dataObj = new Date(t.date);
+    const m = dataObj.getMonth();
+    if (t.type === 'INCOME') chartData[m].receitas += t.amount;
+    if (t.type === 'EXPENSE') chartData[m].despesas += t.amount;
+  });
 
   return (
     <DashboardLayout title="Dashboard">
@@ -61,6 +100,7 @@ export default function DashboardPage() {
           <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>
             R$ {balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
+          <p className="text-muted" style={{fontSize:'0.8rem'}}>Este mês ({nomeMes})</p>
         </div>
 
         <div className="glass-card">
@@ -73,6 +113,7 @@ export default function DashboardPage() {
           <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>
             R$ {incomes.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
+          <p className="text-muted" style={{fontSize:'0.8rem'}}>Este mês ({nomeMes})</p>
         </div>
 
         <div className="glass-card">
@@ -85,12 +126,40 @@ export default function DashboardPage() {
           <p style={{ fontSize: '2rem', fontWeight: 'bold' }}>
             R$ {expenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
+          <p className="text-muted" style={{fontSize:'0.8rem'}}>Este mês ({nomeMes})</p>
+        </div>
+
+        <div className="glass-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 className="text-muted">Próximos Vencimentos</h3>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {pendingTransactions.length === 0 ? (
+              <p className="text-muted" style={{fontSize: '0.8rem'}}>Nenhum vencimento nos próximos 30 dias</p>
+            ) : (
+              pendingTransactions.map((t: any) => {
+                const targetDate = new Date(t.dueDate || t.date);
+                const diffTime = targetDate.getTime() - hoje.getTime();
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const dateColor = diffDays <= 3 ? 'var(--danger)' : 'var(--text-muted)';
+                return (
+                  <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '0.5rem', alignItems: 'center', fontSize: '0.85rem' }}>
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.description}</span>
+                    <span style={{ fontWeight: 'bold', color: t.type === 'EXPENSE' ? 'var(--danger)' : 'var(--success)' }}>
+                      R$ {t.amount.toLocaleString('pt-BR', {minimumFractionDigits:2})}
+                    </span>
+                    <span style={{ color: dateColor }}>{targetDate.toLocaleDateString('pt-BR')}</span>
+                  </div>
+                )
+              })
+            )}
+          </div>
         </div>
       </div>
 
       <div className="dashboard-grid">
         <div className="glass-panel" style={{ padding: '1.5rem', minHeight: '350px' }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>Evolução do Saldo</h3>
+          <h3 style={{ marginBottom: '1.5rem' }}>Fluxo por Mês — {anoAtual}</h3>
           <div style={{ width: '100%', height: '250px' }}>
             {loading ? (
               <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
@@ -98,17 +167,19 @@ export default function DashboardPage() {
               </div>
             ) : chartData.length === 0 ? (
               <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center', color: 'var(--text-muted)' }}>
-                Adicione transações para ver o gráfico
+                Nenhum dado encontrado para o ano.
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
+                <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                  <XAxis dataKey="name" stroke="var(--text-muted)" />
+                  <XAxis dataKey="mes" stroke="var(--text-muted)" />
                   <YAxis stroke="var(--text-muted)" />
                   <Tooltip contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-glass)' }} />
-                  <Line type="monotone" dataKey="valor" stroke="var(--accent-primary)" strokeWidth={3} dot={{ r: 4, fill: 'var(--bg-primary)' }} />
-                </LineChart>
+                  <Legend />
+                  <Bar dataKey="receitas" fill="var(--success)" name="Receitas" />
+                  <Bar dataKey="despesas" fill="var(--danger)" name="Despesas" />
+                </BarChart>
               </ResponsiveContainer>
             )}
           </div>
@@ -119,10 +190,10 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {loading ? (
               <p className="text-muted text-center">Carregando...</p>
-            ) : transactions.length === 0 ? (
+            ) : monthTransactions.length === 0 ? (
               <p className="text-muted text-center">Nenhuma transação encontrada.</p>
             ) : (
-              transactions.slice(0, 5).map((t: any) => (
+              monthTransactions.slice(0, 5).map((t: any) => (
                 <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-glass)' }}>
                   <div>
                     <p style={{ fontWeight: '500' }}>{t.description}</p>

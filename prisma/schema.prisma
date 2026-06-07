@@ -6,6 +6,11 @@ datasource db {
   provider = "mysql"
 }
 
+enum Context {
+  PF
+  PJ
+}
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -61,6 +66,10 @@ model BankAccount {
   color          String             @default("#C9A96E")
   icon           String?
   isActive       Boolean            @default(true)
+  context        Context            @default(PF)
+  servicePackageName String?
+  servicePackageAmount Decimal?     @db.Decimal(10, 2)
+  overdraftLimit       Decimal?     @db.Decimal(10, 2)
   userId         String
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions      Transaction[]
@@ -79,6 +88,7 @@ model CreditCard {
   limit          Float
   color          String             @default("#C9A96E")
   isActive       Boolean            @default(true)
+  context        Context            @default(PF)
   userId         String
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions      Transaction[]
@@ -117,12 +127,13 @@ model TransactionGroup {
   dueDay          Int?
   startDate       DateTime
   notes           String?       @db.Text
+  context         Context       @default(PF)
   creditCardId    String?
   creditCard      CreditCard?   @relation(fields: [creditCardId], references: [id])
   bankAccountId   String?
   bankAccount     BankAccount?  @relation(fields: [bankAccountId], references: [id])
-  categoryId      String
-  category        Category      @relation(fields: [categoryId], references: [id])
+  categoryId      String?
+  category        Category?      @relation(fields: [categoryId], references: [id])
   userId          String
   user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions    Transaction[]
@@ -143,14 +154,16 @@ model Transaction {
   notes              String?           @db.Text
   occurrenceNumber   Int?
   occurrenceTotal    Int?
+  context            Context           @default(PF)
+  transferId         String?
   creditCardId       String?
   creditCard         CreditCard?       @relation(fields: [creditCardId], references: [id])
   bankAccountId      String?
   bankAccount        BankAccount?      @relation(fields: [bankAccountId], references: [id])
   transactionGroupId String?
   transactionGroup   TransactionGroup? @relation(fields: [transactionGroupId], references: [id])
-  categoryId         String
-  category           Category          @relation(fields: [categoryId], references: [id])
+  categoryId         String?
+  category           Category?          @relation(fields: [categoryId], references: [id])
   userId             String
   user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt          DateTime          @default(now())

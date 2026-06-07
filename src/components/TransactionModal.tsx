@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import { useFinanceContext } from "@/lib/useFinanceContext";
 
 interface Category { id: string; name: string; type: string; group: string; }
 interface BankAccount { id: string; name: string; type: string; }
@@ -37,8 +38,11 @@ export function TransactionModal({ isOpen, onClose, onSuccess, editTransaction }
 
   const getToday = () => new Date().toISOString().split("T")[0];
 
+  const { context: globalContext } = useFinanceContext();
+
   const [type, setType] = useState("EXPENSE");
   const [transactionMode, setTransactionMode] = useState("SINGLE");
+  const [modalContext, setModalContext] = useState("PF");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -89,6 +93,7 @@ export function TransactionModal({ isOpen, onClose, onSuccess, editTransaction }
       setNotes(editTransaction.notes || "");
       setTransactionMode("SINGLE");
       setEditScope("SINGLE");
+      setModalContext(editTransaction.context || "PF");
     } else {
       setType("EXPENSE");
       setTransactionMode("SINGLE");
@@ -106,9 +111,10 @@ export function TransactionModal({ isOpen, onClose, onSuccess, editTransaction }
       setOccurrences("12");
       setFrequency("MONTHLY");
       setEditScope("SINGLE");
+      setModalContext(globalContext === "ALL" ? "PF" : globalContext);
     }
     setError(null);
-  }, [editTransaction, isOpen]);
+  }, [editTransaction, isOpen, globalContext]);
 
   const isEditMode = editTransaction != null;
   const isGrouped = isEditMode && !!editTransaction?.transactionGroupId;
@@ -150,6 +156,7 @@ export function TransactionModal({ isOpen, onClose, onSuccess, editTransaction }
         type,
         paymentMethod,
         categoryId,
+        context: modalContext,
         date: date + "T12:00:00.000Z",
         notes: notes || undefined,
       };
@@ -253,6 +260,20 @@ export function TransactionModal({ isOpen, onClose, onSuccess, editTransaction }
             </div>
           </>
         )}
+
+        <div style={{ marginBottom: '1.5rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Perfil:</label>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+              <input type="radio" name="modalContext" value="PF" checked={modalContext === "PF"} onChange={e => setModalContext(e.target.value)} style={{ accentColor: 'var(--accent-primary)' }} />
+              Pessoal (PF)
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.9rem' }}>
+              <input type="radio" name="modalContext" value="PJ" checked={modalContext === "PJ"} onChange={e => setModalContext(e.target.value)} style={{ accentColor: 'var(--accent-primary)' }} />
+              Empresarial (PJ)
+            </label>
+          </div>
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
           <div>

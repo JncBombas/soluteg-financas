@@ -27,8 +27,12 @@ export async function GET(req: Request) {
     const bankAccountId = searchParams.get('bankAccountId');
     const dateFrom = searchParams.get('dateFrom');
     const dateTo = searchParams.get('dateTo');
+    const contextFilter = searchParams.get('context');
 
-    const whereClause: any = { userId: session.user.id };
+    const whereClause: any = { 
+      userId: session.user.id,
+      ...(contextFilter && contextFilter !== 'ALL' ? { context: contextFilter } : {})
+    };
 
     if (type) whereClause.type = { equals: type };
     if (status) whereClause.status = { equals: status };
