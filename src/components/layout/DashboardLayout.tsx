@@ -4,6 +4,7 @@ import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
+import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 
 export function DashboardLayout({ children, title }: { children: React.ReactNode, title: string }) {
   const { status } = useSession({
@@ -26,6 +27,7 @@ export function DashboardLayout({ children, title }: { children: React.ReactNode
           {children}
         </div>
       </main>
+      <PWAInstallBanner />
       <style jsx>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }

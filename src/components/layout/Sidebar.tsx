@@ -1,16 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, Receipt, PieChart, Settings, LogOut, CreditCard, CalendarDays, Wallet } from "lucide-react";
+import { useState } from "react";
+import { LayoutDashboard, Receipt, PieChart, Settings, LogOut, CreditCard, CalendarDays, Wallet, MoreHorizontal, Download } from "lucide-react";
 import styles from "./layout.module.css";
 import { signOut } from "next-auth/react";
 import { useFinanceContext } from "@/lib/useFinanceContext";
+import { usePWAInstall } from "@/lib/usePWAInstall";
 
 export function Sidebar() {
   const { context, setContext } = useFinanceContext();
+  const [showMore, setShowMore] = useState(false);
+  const { canInstall, install } = usePWAInstall();
 
   return (
-    <aside className={styles.sidebar}>
+    <>
+      <aside className={styles.sidebar}>
       <div className={styles.logo}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
           <img src="/logo.png" alt="Soluteg" style={{ height: '32px', width: 'auto' }} />
@@ -54,22 +59,50 @@ export function Sidebar() {
           <Wallet size={20} />
           <span>Contas</span>
         </Link>
-        <Link href="/reports" className={styles.navLink}>
+        <Link href="/reports" className={`${styles.navLink} ${styles.hideOnMobile}`}>
           <PieChart size={20} />
           <span>Relatórios</span>
         </Link>
-        <Link href="/settings" className={styles.navLink}>
+        <Link href="/settings" className={`${styles.navLink} ${styles.hideOnMobile}`}>
           <Settings size={20} />
           <span>Configurações</span>
         </Link>
+        
+        <button onClick={() => setShowMore(!showMore)} className={`${styles.navLink} ${styles.showOnMobile}`} style={{ background: 'transparent', border: 'none' }}>
+          <MoreHorizontal size={20} />
+          <span>Mais</span>
+        </button>
       </nav>
 
       <div className={styles.sidebarFooter}>
+        {canInstall && (
+          <button onClick={install} className={styles.logoutBtn} style={{ color: 'var(--accent-primary)', marginBottom: '0.5rem' }}>
+            <Download size={20} />
+            <span>Instalar App</span>
+          </button>
+        )}
         <button onClick={() => signOut({ callbackUrl: "/login" })} className={styles.logoutBtn}>
           <LogOut size={20} />
           <span>Sair</span>
         </button>
       </div>
     </aside>
+
+    {showMore && (
+      <>
+        <div className={styles.moreOverlay} onClick={() => setShowMore(false)} />
+        <div className={`${styles.moreMenu} glass-card`} style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <Link href="/reports" className={styles.moreBtn} onClick={() => setShowMore(false)}>
+            <PieChart size={18} />
+            Relatórios
+          </Link>
+          <Link href="/settings" className={styles.moreBtn} onClick={() => setShowMore(false)}>
+            <Settings size={18} />
+            Configurações
+          </Link>
+        </div>
+      </>
+    )}
+    </>
   );
 }
