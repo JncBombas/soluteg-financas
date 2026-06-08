@@ -272,9 +272,9 @@ export default function AccountsPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button className="btn-secondary" onClick={resetForm} disabled={saving}>Cancelar</button>
-            <button className="btn-primary" onClick={handleSave} disabled={saving}>
+          <div className="modal-footer-actions" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <button className="btn-secondary" style={{ flex: '1 1 120px' }} onClick={resetForm} disabled={saving}>Cancelar</button>
+            <button className="btn-primary" style={{ flex: '1 1 120px' }} onClick={handleSave} disabled={saving}>
               {saving ? "Salvando..." : "Salvar"}
             </button>
           </div>

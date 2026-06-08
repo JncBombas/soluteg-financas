@@ -10,6 +10,14 @@ export default function CalendarPage() {
   const [creditCards, setCreditCards] = useState<any[]>([]);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -178,7 +186,7 @@ export default function CalendarPage() {
               <Loader2 className="spin" size={32} color="var(--accent-primary)" />
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', flex: 1 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: isMobile ? '2px' : '4px', flex: 1 }}>
               {calendarDays.map((d, idx) => {
                 const isToday = d.day === hoje.getDate() && d.month === hoje.getMonth() && d.year === hoje.getFullYear();
                 const isSelected = selectedDay === d.day && d.isCurrentMonth;
@@ -196,8 +204,8 @@ export default function CalendarPage() {
                       borderRadius: '8px',
                       border: isToday ? '1px solid var(--accent-primary)' : '1px solid var(--border-glass)',
                       boxShadow: isToday ? '0 0 8px var(--accent-glow)' : 'none',
-                      minHeight: '100px',
-                      padding: '0.5rem',
+                      minHeight: isMobile ? '52px' : '100px',
+                      padding: isMobile ? '0.2rem' : '0.5rem',
                       cursor: d.isCurrentMonth ? 'pointer' : 'default',
                       position: 'relative',
                       opacity: d.isCurrentMonth ? 1 : 0.25,
@@ -205,15 +213,19 @@ export default function CalendarPage() {
                     }}
                   >
                     <span style={{ 
-                      position: 'absolute', top: '0.5rem', right: '0.5rem', 
+                      position: 'absolute', top: isMobile ? '0.2rem' : '0.5rem', right: isMobile ? '0.2rem' : '0.5rem', 
                       fontSize: '0.9rem', fontWeight: 'bold', 
                       color: isToday ? 'var(--accent-primary)' : 'var(--text-muted)' 
                     }}>
                       {d.day}
                     </span>
 
-                    <div className="markers-container" style={{ marginTop: '1.2rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div className="markers-container" style={{ marginTop: isMobile ? '1.2rem' : '1.2rem', display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: '2px', flexWrap: 'wrap' }}>
                       {markers.map((m, mIdx) => {
+                        if (isMobile) {
+                          const dotColor = m.type === 'CLOSING' ? (m.color || 'var(--text-muted)') : 'var(--danger)';
+                          return <div key={`m-${mIdx}`} style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: dotColor }} />;
+                        }
                         const firstName = m.cardName.split(' ')[0];
                         if (m.type === 'CLOSING') {
                           return (
@@ -231,27 +243,32 @@ export default function CalendarPage() {
                       })}
                     </div>
 
-                    <div className="events-container" style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div className="events-container" style={{ marginTop: '0.2rem', display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: '2px', flexWrap: 'wrap' }}>
                       {events.slice(0, 3).map((e, eIdx) => {
-                        let bg = 'rgba(255,255,255,0.05)';
                         let color = 'var(--text-muted)';
-                        
-                        if (e.type === 'INCOME') {
-                          bg = 'rgba(0,255,136,0.1)'; color = 'var(--success)';
-                        } else if (e.type === 'EXPENSE') {
-                          if (e.status === 'PENDING') { bg = 'rgba(255,165,0,0.08)'; color = 'var(--warning)'; }
-                          else if (e.status === 'OVERDUE') { bg = 'rgba(255,71,87,0.1)'; color = 'var(--danger)'; }
+                        if (e.type === 'INCOME') color = 'var(--success)';
+                        else if (e.type === 'EXPENSE') {
+                          if (e.status === 'PENDING') color = 'var(--warning)';
+                          else if (e.status === 'OVERDUE') color = 'var(--danger)';
                         }
+                        
+                        if (isMobile) {
+                          return <div key={`e-${eIdx}`} style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: color }} />;
+                        }
+
+                        let bg = 'rgba(255,255,255,0.05)';
+                        if (e.type === 'INCOME') bg = 'rgba(0,255,136,0.1)';
+                        else if (e.status === 'PENDING') bg = 'rgba(255,165,0,0.08)';
+                        else if (e.status === 'OVERDUE') bg = 'rgba(255,71,87,0.1)';
 
                         const desc = e.description.length > 12 ? e.description.substring(0, 12) + '...' : e.description;
                         return (
                           <div key={`e-${eIdx}`} className="event-pill" style={{ background: bg, color }}>
                             <span className="event-text">{desc} R$ {e.amount.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
-                            <div className="event-dot" style={{ backgroundColor: color }}></div>
                           </div>
                         );
                       })}
-                      {events.length > 3 && (
+                      {!isMobile && events.length > 3 && (
                         <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '2px' }}>
                           +{events.length - 3} mais
                         </div>

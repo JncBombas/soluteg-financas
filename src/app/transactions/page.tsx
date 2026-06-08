@@ -22,6 +22,7 @@ const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString
 const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
 
 export default function TransactionsPage() {
+  const [isMobile, setIsMobile] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -65,6 +66,13 @@ export default function TransactionsPage() {
   useEffect(() => {
     fetchTransactions();
   }, [filterType, filterStatus, filterMethod, filterDateFrom, filterDateTo]);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const togglePaid = async (transaction: any) => {
     setTogglingPayId(transaction.id);
@@ -202,6 +210,70 @@ export default function TransactionsPage() {
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem' }}>
             <Loader2 className="spin" size={32} color="var(--accent-primary)" />
+          </div>
+        ) : isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {transactions.length === 0 ? (
+              <p className="text-muted" style={{ textAlign: 'center', padding: '2rem 0' }}>
+                Nenhuma transação encontrada.
+              </p>
+            ) : transactions.map(t => {
+              const targetDateStr = t.dueDate ?? t.date;
+              const dateObj = new Date(targetDateStr);
+              const isOverdue = dateObj < new Date() && t.status === "PENDING";
+              const statusConf = STATUS_CONFIG[t.status] || STATUS_CONFIG.PENDING;
+
+              return (
+                <div key={t.id} className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {t.description}
+                      </p>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {t.category?.name || '—'}
+                      </p>
+                    </div>
+                    <p style={{ fontWeight: 'bold', fontSize: '1.05rem', color: t.type === 'INCOME' ? 'var(--success)' : 'var(--danger)', marginLeft: '0.5rem', whiteSpace: 'nowrap' }}>
+                      {t.type === 'INCOME' ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: isOverdue ? 'var(--danger)' : 'var(--text-muted)' }}>
+                      📅 {dateObj.toLocaleDateString('pt-BR')}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {METHOD_LABELS[t.paymentMethod] || t.paymentMethod}
+                    </span>
+                    {t.occurrenceNumber && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {t.occurrenceNumber}/{t.occurrenceTotal}
+                      </span>
+                    )}
+                    <span style={{ background: statusConf.bg, color: statusConf.color, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-full)', fontSize: '0.72rem' }}>
+                      {statusConf.label}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', paddingTop: '0.25rem', borderTop: '1px solid var(--border-glass)' }}>
+                    <button disabled={togglingPayId === t.id} onClick={() => togglePaid(t)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', borderRadius: '6px' }}
+                      title={t.status === 'PAID' ? 'Desmarcar' : 'Marcar como pago'}>
+                      <Check size={18} color={t.status === 'PAID' ? 'var(--success)' : 'var(--text-muted)'} />
+                    </button>
+                    <button onClick={() => openEdit(t)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', borderRadius: '6px', color: 'var(--text-muted)' }}>
+                      <Pencil size={18} />
+                    </button>
+                    <button onClick={() => setConfirmDeleteId(t.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.4rem', borderRadius: '6px', color: 'var(--text-muted)' }}>
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse', textAlign: 'left' }}>

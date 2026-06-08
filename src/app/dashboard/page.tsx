@@ -12,6 +12,14 @@ export default function DashboardPage() {
   const [yearTransactions, setYearTransactions] = useState<any[]>([]);
   const [pendingTransactions, setPendingTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   useEffect(() => {
     fetchTransactions();
@@ -160,7 +168,7 @@ export default function DashboardPage() {
       <div className="dashboard-grid">
         <div className="glass-panel" style={{ padding: '1.5rem', minHeight: '350px' }}>
           <h3 style={{ marginBottom: '1.5rem' }}>Fluxo por Mês — {anoAtual}</h3>
-          <div style={{ width: '100%', height: '250px' }}>
+          <div style={{ width: '100%', height: isMobile ? '200px' : '250px' }}>
             {loading ? (
               <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
                 <Loader2 className="spin" size={32} color="var(--accent-primary)" />

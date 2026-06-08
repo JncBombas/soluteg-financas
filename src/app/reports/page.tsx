@@ -255,7 +255,7 @@ export default function ReportsPage() {
             {/* GRÁFICO A */}
             <div className="glass-panel" style={{ padding: '1.5rem' }}>
               <h3 style={{ marginBottom: '1.5rem' }}>Despesas por Categoria</h3>
-              <div style={{ width: '100%', height: '300px' }}>
+              <div style={{ width: '100%', height: '300px', minHeight: '280px' }}>
                 {categoryPieData.length === 0 ? (
                   <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center' }} className="text-muted">
                     Nenhuma despesa no período
@@ -278,7 +278,7 @@ export default function ReportsPage() {
             {/* GRÁFICO B */}
             <div className="glass-panel" style={{ padding: '1.5rem' }}>
               <h3 style={{ marginBottom: '1.5rem' }}>Receitas vs Despesas por Mês</h3>
-              <div style={{ width: '100%', height: '300px' }}>
+              <div style={{ width: '100%', height: '300px', minHeight: '280px' }}>
                 {monthlyDataFilled.length === 0 ? (
                   <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center' }} className="text-muted">
                     Nenhuma transação no período
@@ -303,7 +303,7 @@ export default function ReportsPage() {
             {/* GRÁFICO C */}
             <div className="glass-panel span-2" style={{ padding: '1.5rem' }}>
               <h3 style={{ marginBottom: '1.5rem' }}>Evolução do Saldo</h3>
-              <div style={{ width: '100%', height: '250px' }}>
+              <div style={{ width: '100%', height: '250px', minHeight: '280px' }}>
                 {balanceEvolution.length === 0 ? (
                   <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center' }} className="text-muted">
                     Nenhuma transação no período
@@ -332,7 +332,7 @@ export default function ReportsPage() {
             {/* GRÁFICO D */}
             <div className="glass-panel" style={{ padding: '1.5rem' }}>
               <h3 style={{ marginBottom: '1.5rem' }}>Por Método de Pagamento</h3>
-              <div style={{ width: '100%', height: '300px' }}>
+              <div style={{ width: '100%', height: '300px', minHeight: '280px' }}>
                 {methodPieData.length === 0 ? (
                   <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center' }} className="text-muted">
                     Nenhuma despesa no período

@@ -97,9 +97,31 @@ export function TransferModal({ isOpen, onClose, onSuccess }: TransferModalProps
   if (!isOpen) return null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-      <div className="glass-card" style={{ width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', padding: '2rem' }}>
-        
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: 'rgba(0,0,0,0.7)',
+      backdropFilter: 'blur(8px)',
+      zIndex: 1000,
+      display: 'flex',
+      alignItems: 'flex-end',
+      justifyContent: 'center',
+      padding: 0,
+    }}>
+      <div className="glass-card" style={{
+        width: '100%',
+        maxWidth: '480px',
+        maxHeight: '92vh',
+        overflowY: 'auto',
+        padding: '1.5rem',
+        borderRadius: '20px 20px 0 0',
+        margin: '0 auto',
+      }}>
+        <div style={{
+          width: '40px', height: '4px',
+          background: 'rgba(255,255,255,0.2)',
+          borderRadius: '2px',
+          margin: '0 auto 1rem auto',
+        }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>↔️</span> Transferência entre Contas
@@ -144,7 +166,7 @@ export function TransferModal({ isOpen, onClose, onSuccess }: TransferModalProps
               </select>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.3rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Valor (R$)*</label>
                 <input type="number" step="0.01" min="0.01" placeholder="0,00" className="input-field" value={amount} onChange={e => setAmount(e.target.value)} />
