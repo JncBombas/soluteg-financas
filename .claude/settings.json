@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Hidden -Filter \".env*\" -Recurse -Depth 2)",
+      "Bash(Select-Object FullName)",
+      "Bash(Select-String -Pattern \"mariadb|prisma\")",
+      "Bash(Get-ChildItem -Recurse -Directory)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\thiag\\\\OneDrive\\\\Documentos\\\\Projetos\\\\Projeto finaceiro\\\\secure-fin\" -Force | Where-Object {$_.BaseName -match '^\\\\.?[a-z]' -or $_.Name -match '\\\\.\\(json|ts|js|config\\)$'} | Select-Object -ExpandProperty Name)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(git commit -m 'fix: params como Promise no seed route \\(Next.js 15\\) *)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

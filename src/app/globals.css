@@ -115,6 +115,12 @@ button {
   color: var(--text-muted);
 }
 
+/* Fix for dark mode select dropdowns */
+option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
 /* Buttons */
 .btn-primary {
   background: var(--accent-primary);
