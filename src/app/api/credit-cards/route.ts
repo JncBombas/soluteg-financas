@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { CreditCardSchema } from "@/lib/validations";
 import { nextBusinessDay } from "@/lib/businessDays";
+import { serializeDecimals } from "@/lib/serialize";
 
 function getCicloAtual(closingDay: number) {
   const hoje = new Date();
@@ -23,22 +25,6 @@ function getCicloAtual(closingDay: number) {
   return { cycleStart, cycleEnd };
 }
 
-async function calcularFaturaAtual(cardId: string, closingDay: number) {
-  const { cycleStart, cycleEnd } = getCicloAtual(closingDay);
-  
-  const sum = await prisma.transaction.aggregate({
-    where: {
-      creditCardId: cardId,
-      type: "EXPENSE",
-      status: { not: "CANCELLED" },
-      date: { gte: cycleStart, lte: cycleEnd }
-    },
-    _sum: { amount: true }
-  });
-  
-  return sum._sum.amount || 0;
-}
-
 export async function GET(req: Request) {
   try {
     const session = await auth();
@@ -47,8 +33,8 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const contextFilter = searchParams.get('context');
 
-    const whereClause: any = { 
-      userId: session.user.id, 
+    const whereClause: any = {
+      userId: session.user.id,
       isActive: true,
       ...(contextFilter && contextFilter !== 'ALL' ? { context: contextFilter } : {})
     };
@@ -58,25 +44,51 @@ export async function GET(req: Request) {
       orderBy: { name: 'asc' }
     });
 
-    const cardsWithInvoice = await Promise.all(
-      cards.map(async (card) => {
-        const currentInvoice = await calcularFaturaAtual(card.id, card.closingDay);
-        
-        const hoje = new Date();
-        const mes = hoje.getMonth();
-        const ano = hoje.getFullYear();
-        let invoiceDueDate;
-        
-        if (hoje.getDate() <= card.closingDay) {
-          invoiceDueDate = new Date(ano, mes + 1, card.dueDay);
-        } else {
-          invoiceDueDate = new Date(ano, mes + 2, card.dueDay);
-        }
-        invoiceDueDate = nextBusinessDay(invoiceDueDate);
-        
-        return { ...card, currentInvoice, invoiceDueDate };
-      })
-    );
+    // Pré-calcula o ciclo de cada cartão e busca as transações de todos os
+    // cartões em uma única query (evita N+1). A soma da fatura é feita por
+    // cartão em JS, respeitando a janela de ciclo individual.
+    const ciclos = new Map(cards.map((c) => [c.id, getCicloAtual(c.closingDay)]));
+
+    let invoiceTx: { creditCardId: string | null; date: Date; amount: Prisma.Decimal }[] = [];
+    if (cards.length > 0) {
+      const minStart = new Date(Math.min(...cards.map((c) => ciclos.get(c.id)!.cycleStart.getTime())));
+      const maxEnd = new Date(Math.max(...cards.map((c) => ciclos.get(c.id)!.cycleEnd.getTime())));
+      invoiceTx = await prisma.transaction.findMany({
+        where: {
+          creditCardId: { in: cards.map((c) => c.id) },
+          type: "EXPENSE",
+          status: { not: "CANCELLED" },
+          date: { gte: minStart, lte: maxEnd }
+        },
+        select: { creditCardId: true, date: true, amount: true }
+      });
+    }
+
+    // Soma em centavos (inteiros) para manter a fatura exata.
+    const faturaCentavos = new Map<string, number>();
+    for (const tx of invoiceTx) {
+      if (!tx.creditCardId) continue;
+      const ciclo = ciclos.get(tx.creditCardId);
+      if (!ciclo || tx.date < ciclo.cycleStart || tx.date > ciclo.cycleEnd) continue;
+      const cents = Math.round(Number(tx.amount) * 100);
+      faturaCentavos.set(tx.creditCardId, (faturaCentavos.get(tx.creditCardId) || 0) + cents);
+    }
+
+    const hoje = new Date();
+    const mes = hoje.getMonth();
+    const ano = hoje.getFullYear();
+
+    const cardsWithInvoice = cards.map((card) => {
+      let invoiceDueDate;
+      if (hoje.getDate() <= card.closingDay) {
+        invoiceDueDate = new Date(ano, mes + 1, card.dueDay);
+      } else {
+        invoiceDueDate = new Date(ano, mes + 2, card.dueDay);
+      }
+      invoiceDueDate = nextBusinessDay(invoiceDueDate);
+
+      return { ...serializeDecimals(card), currentInvoice: (faturaCentavos.get(card.id) || 0) / 100, invoiceDueDate };
+    });
 
     return NextResponse.json(cardsWithInvoice);
   } catch (error: any) {
@@ -100,7 +112,7 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json(newCard, { status: 201 });
+    return NextResponse.json(serializeDecimals(newCard), { status: 201 });
   } catch (error: any) {
     console.error("ERRO POST CREDIT CARD:", error);
     return NextResponse.json({ error: "Erro Interno" }, { status: 500 });

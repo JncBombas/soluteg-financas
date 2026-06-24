@@ -77,7 +77,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         for (let i = 0; i < installment.remainingInstallments; i++) {
           const occurrenceNum = installment.currentInstallmentNumber + i;
           const dueDate = nextBusinessDay(new Date(baseYear, baseMonth + 1 + i, card.dueDay));
-          const amount = installment.totalAmount / totalInstallments;
+          const amount = Math.round((installment.totalAmount / totalInstallments) * 100) / 100;
 
           transactionsData.push({
             userId: session.user.id,

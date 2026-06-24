@@ -52,9 +52,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Não Autorizado" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const contextFilter = searchParams.get('context');
-
     const count = await prisma.category.count({
       where: { userId: session.user.id }
     });
@@ -70,12 +67,8 @@ export async function GET(req: Request) {
       });
     }
 
-    const whereClause: any = (contextFilter === 'PF' || contextFilter === 'PJ') 
-      ? { OR: [{ isDefault: true }, { context: contextFilter, userId: session.user.id }] }
-      : { OR: [{ isDefault: true }, { userId: session.user.id }] };
-
     const categories = await prisma.category.findMany({
-      where: whereClause,
+      where: { userId: session.user.id },
       orderBy: [
         { type: 'asc' },
         { context: 'asc' },

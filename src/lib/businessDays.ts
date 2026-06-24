@@ -29,11 +29,23 @@ export function getEaster(year: number): Date {
   return new Date(year, month, day);
 }
 
-const toLocalISOString = (d: Date) => {
+export const toLocalISOString = (d: Date) => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+/**
+ * Converte uma data de input ("YYYY-MM-DD") para meio-dia UTC, evitando
+ * deslocamento de dia (off-by-one) ao exibir em fusos a oeste/leste de UTC.
+ * Mesma convenção usada na rota de transferências.
+ */
+export const parseInputDate = (dateStr: string): Date => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return new Date(dateStr + "T12:00:00.000Z");
+  }
+  return new Date(dateStr);
 };
 
 export function getHolidays(year: number): Set<string> {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { UpdateCreditCardSchema } from "@/lib/validations";
+import { serializeDecimals } from "@/lib/serialize";
 
 function getCicloAtual(closingDay: number) {
   const hoje = new Date();
@@ -34,8 +35,8 @@ async function calcularFaturaAtual(cardId: string, closingDay: number) {
     },
     _sum: { amount: true }
   });
-  
-  return sum._sum.amount || 0;
+
+  return Number(sum._sum.amount || 0);
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -75,12 +76,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
 
     return NextResponse.json({
-      ...card,
+      ...serializeDecimals(card),
       currentInvoice,
       invoiceDueDate,
       cycleStart,
       cycleEnd,
-      invoiceTransactions
+      invoiceTransactions: serializeDecimals(invoiceTransactions)
     });
   } catch (error: any) {
     console.error("ERRO GET CREDIT CARD ID:", error);
@@ -107,7 +108,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       data: validatedData
     });
 
-    return NextResponse.json(updatedCard);
+    return NextResponse.json(serializeDecimals(updatedCard));
   } catch (error: any) {
     console.error("ERRO PUT CREDIT CARD:", error);
     return NextResponse.json({ error: "Erro Interno" }, { status: 500 });

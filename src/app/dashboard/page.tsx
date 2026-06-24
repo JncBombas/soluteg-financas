@@ -5,6 +5,7 @@ import { ArrowUpRight, ArrowDownRight, DollarSign, Plus, Loader2 } from "lucide-
 import { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { TransactionModal } from "@/components/TransactionModal";
+import { toLocalISOString } from "@/lib/businessDays";
 
 export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -31,15 +32,15 @@ export default function DashboardPage() {
       const hoje = new Date();
       const anoAtual = hoje.getFullYear();
       const mesAtual = hoje.getMonth();
-      const primeiroDiaMes = new Date(anoAtual, mesAtual, 1).toISOString().split('T')[0];
-      const ultimoDiaMes = new Date(anoAtual, mesAtual + 1, 0).toISOString().split('T')[0];
+      const primeiroDiaMes = toLocalISOString(new Date(anoAtual, mesAtual, 1));
+      const ultimoDiaMes = toLocalISOString(new Date(anoAtual, mesAtual + 1, 0));
       const primeiroDiaAno = `${anoAtual}-01-01`;
       const ultimoDiaAno = `${anoAtual}-12-31`;
 
-      const hojeStr = hoje.toISOString().split('T')[0];
+      const hojeStr = toLocalISOString(hoje);
       const hojeMais30 = new Date(hoje);
       hojeMais30.setDate(hoje.getDate() + 30);
-      const hojeMais30Str = hojeMais30.toISOString().split('T')[0];
+      const hojeMais30Str = toLocalISOString(hojeMais30);
 
       const [resMonth, resYear, resPending] = await Promise.all([
         fetch(`/api/transactions?dateFrom=${primeiroDiaMes}&dateTo=${ultimoDiaMes}`),
@@ -69,9 +70,12 @@ export default function DashboardPage() {
     }
   };
 
-  // Calculations
-  const incomes = monthTransactions.filter((t: any) => t.type === "INCOME").reduce((acc, t: any) => acc + t.amount, 0);
-  const expenses = monthTransactions.filter((t: any) => t.type === "EXPENSE").reduce((acc, t: any) => acc + t.amount, 0);
+  // Calculations — considera apenas transações realizadas (PAID),
+  // mantendo o saldo coerente com o saldo das contas. Pendentes aparecem
+  // no card "Próximos Vencimentos".
+  const paidMonthTransactions = monthTransactions.filter((t: any) => t.status === "PAID");
+  const incomes = paidMonthTransactions.filter((t: any) => t.type === "INCOME").reduce((acc, t: any) => acc + t.amount, 0);
+  const expenses = paidMonthTransactions.filter((t: any) => t.type === "EXPENSE").reduce((acc, t: any) => acc + t.amount, 0);
   const balance = incomes - expenses;
 
   const hoje = new Date();

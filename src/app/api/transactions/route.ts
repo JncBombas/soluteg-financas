@@ -2,14 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { NewTransactionSchema } from "@/lib/validations";
+import { parseInputDate } from "@/lib/businessDays";
+import { serializeDecimals } from "@/lib/serialize";
 import { z } from "zod";
 
 function calcularDueDate(date: Date, closingDay: number, dueDay: number) {
-  if (date.getDate() <= closingDay) {
-    return new Date(date.getFullYear(), date.getMonth() + 1, dueDay);
-  } else {
-    return new Date(date.getFullYear(), date.getMonth() + 2, dueDay);
-  }
+  const offset = date.getUTCDate() <= closingDay ? 1 : 2;
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + offset, dueDay, 12));
 }
 
 export async function GET(req: Request) {
@@ -57,7 +56,7 @@ export async function GET(req: Request) {
       }
     });
 
-    return NextResponse.json(transactions);
+    return NextResponse.json(serializeDecimals(transactions));
   } catch (error) {
     console.error("Erro GET Transações:", error);
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
@@ -70,6 +69,7 @@ export async function POST(req: Request) {
     if (!session || !session.user?.id) {
       return NextResponse.json({ error: "Acesso Não Autorizado" }, { status: 401 });
     }
+    const userId = session.user.id;
 
     const body = await req.json();
     const data = NewTransactionSchema.parse(body);
@@ -79,8 +79,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Categoria inválida ou não pertence ao usuário" }, { status: 400 });
     }
 
+    if (data.creditCardId) {
+      const card = await prisma.creditCard.findUnique({ where: { id: data.creditCardId } });
+      if (!card || card.userId !== session.user.id) {
+        return NextResponse.json({ error: "Cartão inválido ou não pertence ao usuário" }, { status: 400 });
+      }
+    }
+
+    if (data.bankAccountId) {
+      const account = await prisma.bankAccount.findUnique({ where: { id: data.bankAccountId } });
+      if (!account || account.userId !== session.user.id) {
+        return NextResponse.json({ error: "Conta inválida ou não pertence ao usuário" }, { status: 400 });
+      }
+    }
+
     if (data.transactionMode === "SINGLE") {
-      const purchaseDate = new Date(data.date);
+      const purchaseDate = parseInputDate(data.date);
       const today = new Date();
       const status = purchaseDate <= today ? "PAID" : "PENDING";
       const paidAt = status === "PAID" ? purchaseDate : null;
@@ -104,52 +118,61 @@ export async function POST(req: Request) {
         }
       });
 
-      return NextResponse.json(transaction, { status: 201 });
+      return NextResponse.json(serializeDecimals(transaction), { status: 201 });
     }
 
     if (data.transactionMode === "INSTALLMENT") {
       if (!data.installments) return NextResponse.json({ error: "Número de parcelas obrigatório" }, { status: 400 });
       
-      const installmentAmount = data.amount / data.installments;
-      const purchaseDate = new Date(data.date);
-
-      const group = await prisma.transactionGroup.create({
-        data: {
-          description: data.description,
-          groupType: "INSTALLMENT",
-          transactionType: data.type,
-          paymentMethod: data.paymentMethod,
-          totalAmount: data.amount,
-          occurrences: data.installments,
-          startDate: purchaseDate,
-          creditCardId: data.creditCardId || null,
-          bankAccountId: data.bankAccountId || null,
-          categoryId: data.categoryId,
-          userId: session.user.id,
-          notes: data.notes || null
-        }
-      });
+      // Distribui o valor em centavos para evitar erro de arredondamento de
+      // float: cada parcela recebe a base arredondada e a última absorve a
+      // sobra, garantindo que a soma das parcelas seja exatamente o total.
+      const totalCents = Math.round(data.amount * 100);
+      const baseCents = Math.floor(totalCents / data.installments);
+      const installmentCents = (i: number) =>
+        i === data.installments! - 1
+          ? totalCents - baseCents * (data.installments! - 1)
+          : baseCents;
+      const purchaseDate = parseInputDate(data.date);
 
       let cardData = null;
       if (data.paymentMethod === "CREDIT" && data.creditCardId) {
         cardData = await prisma.creditCard.findUnique({ where: { id: data.creditCardId } });
       }
 
-      for (let i = 0; i < data.installments; i++) {
-        const installDate = new Date(purchaseDate);
-        installDate.setMonth(installDate.getMonth() + i);
-
-        let dueDate;
-        if (data.paymentMethod === "CREDIT" && cardData) {
-          dueDate = calcularDueDate(installDate, cardData.closingDay, cardData.dueDay);
-        } else {
-          dueDate = new Date(installDate);
-          if (data.dueDay) dueDate.setDate(data.dueDay);
-        }
-
-        await prisma.transaction.create({
+      const group = await prisma.$transaction(async (tx) => {
+        const createdGroup = await tx.transactionGroup.create({
           data: {
-            amount: installmentAmount,
+            description: data.description,
+            groupType: "INSTALLMENT",
+            transactionType: data.type,
+            paymentMethod: data.paymentMethod,
+            totalAmount: data.amount,
+            occurrences: data.installments!,
+            startDate: purchaseDate,
+            creditCardId: data.creditCardId || null,
+            bankAccountId: data.bankAccountId || null,
+            categoryId: data.categoryId,
+            userId: userId,
+            notes: data.notes || null
+          }
+        });
+
+        const installmentsData = [];
+        for (let i = 0; i < data.installments!; i++) {
+          const installDate = new Date(purchaseDate);
+          installDate.setMonth(installDate.getMonth() + i);
+
+          let dueDate;
+          if (data.paymentMethod === "CREDIT" && cardData) {
+            dueDate = calcularDueDate(installDate, cardData.closingDay, cardData.dueDay);
+          } else {
+            dueDate = new Date(installDate);
+            if (data.dueDay) dueDate.setDate(data.dueDay);
+          }
+
+          installmentsData.push({
+            amount: installmentCents(i) / 100,
             description: data.description,
             date: installDate,
             dueDate,
@@ -160,60 +183,64 @@ export async function POST(req: Request) {
             fee: null,
             creditCardId: data.creditCardId || null,
             bankAccountId: data.bankAccountId || null,
-            transactionGroupId: group.id,
+            transactionGroupId: createdGroup.id,
             occurrenceNumber: i + 1,
-            occurrenceTotal: data.installments,
+            occurrenceTotal: data.installments!,
             categoryId: data.categoryId,
-            userId: session.user.id,
+            userId: userId,
             notes: data.notes || null
-          }
-        });
-      }
+          });
+        }
 
-      return NextResponse.json({ group, message: `${data.installments} parcelas criadas` }, { status: 201 });
+        await tx.transaction.createMany({ data: installmentsData });
+        return createdGroup;
+      });
+
+      return NextResponse.json({ group: serializeDecimals(group), message: `${data.installments} parcelas criadas` }, { status: 201 });
     }
 
     if (data.transactionMode === "RECURRING") {
       if (!data.occurrences || !data.frequency) return NextResponse.json({ error: "Ocorrências e Frequência são obrigatórios" }, { status: 400 });
 
-      const startDate = new Date(data.date);
-
-      const group = await prisma.transactionGroup.create({
-        data: {
-          description: data.description,
-          groupType: "RECURRING",
-          transactionType: data.type,
-          paymentMethod: data.paymentMethod,
-          totalAmount: data.amount,
-          occurrences: data.occurrences,
-          dueDay: data.dueDay || null,
-          startDate,
-          creditCardId: data.creditCardId || null,
-          bankAccountId: data.bankAccountId || null,
-          categoryId: data.categoryId,
-          userId: session.user.id,
-          notes: data.notes || null
-        }
-      });
-
+      const startDate = parseInputDate(data.date);
       const today = new Date();
-      for (let i = 0; i < data.occurrences; i++) {
-        const dueDate = new Date(startDate);
-        
-        if (data.frequency === "MONTHLY") {
-          dueDate.setMonth(dueDate.getMonth() + i);
-          if (data.dueDay) dueDate.setDate(data.dueDay);
-        } else if (data.frequency === "WEEKLY") {
-          dueDate.setDate(dueDate.getDate() + i * 7);
-        } else if (data.frequency === "YEARLY") {
-          dueDate.setFullYear(dueDate.getFullYear() + i);
-        }
 
-        const status = dueDate <= today ? "PAID" : "PENDING";
-        const paidAt = status === "PAID" ? dueDate : null;
-
-        await prisma.transaction.create({
+      const group = await prisma.$transaction(async (tx) => {
+        const createdGroup = await tx.transactionGroup.create({
           data: {
+            description: data.description,
+            groupType: "RECURRING",
+            transactionType: data.type,
+            paymentMethod: data.paymentMethod,
+            totalAmount: data.amount,
+            occurrences: data.occurrences!,
+            dueDay: data.dueDay || null,
+            startDate,
+            creditCardId: data.creditCardId || null,
+            bankAccountId: data.bankAccountId || null,
+            categoryId: data.categoryId,
+            userId: userId,
+            notes: data.notes || null
+          }
+        });
+
+        const occurrencesData = [];
+        for (let i = 0; i < data.occurrences!; i++) {
+          const dueDate = new Date(startDate);
+
+          if (data.frequency === "MONTHLY") {
+            dueDate.setMonth(dueDate.getMonth() + i);
+            if (data.dueDay) dueDate.setDate(data.dueDay);
+          } else if (data.frequency === "WEEKLY") {
+            dueDate.setDate(dueDate.getDate() + i * 7);
+          } else if (data.frequency === "YEARLY") {
+            dueDate.setFullYear(dueDate.getFullYear() + i);
+          }
+
+          const status = dueDate <= today ? "PAID" : "PENDING";
+          const paidAt = status === "PAID" ? dueDate : null;
+
+          occurrencesData.push({
             amount: data.amount,
             description: data.description,
             date: dueDate,
@@ -224,17 +251,20 @@ export async function POST(req: Request) {
             paidAt,
             creditCardId: data.creditCardId || null,
             bankAccountId: data.bankAccountId || null,
-            transactionGroupId: group.id,
+            transactionGroupId: createdGroup.id,
             occurrenceNumber: i + 1,
-            occurrenceTotal: data.occurrences,
+            occurrenceTotal: data.occurrences!,
             categoryId: data.categoryId,
-            userId: session.user.id,
+            userId: userId,
             notes: data.notes || null
-          }
-        });
-      }
+          });
+        }
 
-      return NextResponse.json({ group, message: `${data.occurrences} ocorrências criadas` }, { status: 201 });
+        await tx.transaction.createMany({ data: occurrencesData });
+        return createdGroup;
+      });
+
+      return NextResponse.json({ group: serializeDecimals(group), message: `${data.occurrences} ocorrências criadas` }, { status: 201 });
     }
 
   } catch (error) {

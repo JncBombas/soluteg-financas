@@ -62,7 +62,7 @@ model BankAccount {
   id             String             @id @default(cuid())
   name           String
   type           String             // "CHECKING" | "SAVINGS" | "DIGITAL" | "INVESTMENT"
-  initialBalance Float              @default(0)
+  initialBalance Decimal            @default(0) @db.Decimal(10, 2)
   color          String             @default("#C9A96E")
   icon           String?
   isActive       Boolean            @default(true)
@@ -85,7 +85,7 @@ model CreditCard {
   lastFourDigits String?
   closingDay     Int
   dueDay         Int
-  limit          Float
+  limit          Decimal            @db.Decimal(10, 2)
   color          String             @default("#C9A96E")
   isActive       Boolean            @default(true)
   context        Context            @default(PF)
@@ -122,7 +122,7 @@ model TransactionGroup {
   groupType       String        // "INSTALLMENT" | "RECURRING"
   transactionType String        // "INCOME" | "EXPENSE"
   paymentMethod   String        // "CASH" | "DEBIT" | "CREDIT" | "PIX" | "BOLETO" | "TRANSFER"
-  totalAmount     Float
+  totalAmount     Decimal       @db.Decimal(10, 2)
   occurrences     Int
   dueDay          Int?
   startDate       DateTime
@@ -142,14 +142,14 @@ model TransactionGroup {
 
 model Transaction {
   id                 String            @id @default(cuid())
-  amount             Float
+  amount             Decimal           @db.Decimal(10, 2)
   description        String
   date               DateTime
   dueDate            DateTime?
   type               String            // "INCOME" | "EXPENSE"
   paymentMethod      String            @default("CASH")
   status             String            @default("PAID")
-  fee                Float?
+  fee                Decimal?          @db.Decimal(10, 2)
   paidAt             DateTime?
   notes              String?           @db.Text
   occurrenceNumber   Int?

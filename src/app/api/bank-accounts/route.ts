@@ -2,24 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { BankAccountSchema } from "@/lib/validations";
-
-async function calcularSaldo(accountId: string, initialBalance: number) {
-  const transactions = await prisma.transaction.groupBy({
-    by: ['type'],
-    where: { bankAccountId: accountId, status: 'PAID' },
-    _sum: { amount: true }
-  });
-
-  let somaIncome = 0;
-  let somaExpense = 0;
-
-  for (const t of transactions) {
-    if (t.type === 'INCOME') somaIncome += t._sum.amount || 0;
-    if (t.type === 'EXPENSE') somaExpense += t._sum.amount || 0;
-  }
-
-  return initialBalance + somaIncome - somaExpense;
-}
+import { serializeDecimals } from "@/lib/serialize";
 
 export async function GET(req: Request) {
   try {
@@ -29,7 +12,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const contextFilter = searchParams.get('context');
 
-    const whereClause: any = { 
+    const whereClause: any = {
       userId: session.user.id,
       ...(contextFilter && contextFilter !== 'ALL' ? { context: contextFilter } : {})
     };
@@ -39,12 +22,27 @@ export async function GET(req: Request) {
       orderBy: { name: 'asc' }
     });
 
-    const accountsWithBalance = await Promise.all(
-      accounts.map(async (acc: any) => {
-        const currentBalance = await calcularSaldo(acc.id, Number(acc.initialBalance));
-        return { ...acc, currentBalance };
-      })
-    );
+    // Saldo de todas as contas em uma única query (evita N+1).
+    const accountIds = accounts.map((acc) => acc.id);
+    const sums = accountIds.length > 0
+      ? await prisma.transaction.groupBy({
+          by: ['bankAccountId', 'type'],
+          where: { bankAccountId: { in: accountIds }, status: 'PAID' },
+          _sum: { amount: true }
+        })
+      : [];
+
+    const saldoPorConta = new Map<string, number>();
+    for (const s of sums) {
+      if (!s.bankAccountId) continue;
+      const delta = (s.type === 'INCOME' ? 1 : -1) * Number(s._sum.amount || 0);
+      saldoPorConta.set(s.bankAccountId, (saldoPorConta.get(s.bankAccountId) || 0) + delta);
+    }
+
+    const accountsWithBalance = accounts.map((acc) => ({
+      ...serializeDecimals(acc),
+      currentBalance: Number(acc.initialBalance) + (saldoPorConta.get(acc.id) || 0)
+    }));
 
     return NextResponse.json(accountsWithBalance);
   } catch (error: any) {
@@ -68,7 +66,7 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json(newAccount, { status: 201 });
+    return NextResponse.json(serializeDecimals(newAccount), { status: 201 });
   } catch (error: any) {
     console.error("ERRO POST BANK ACCOUNT:", error);
     return NextResponse.json({ error: "Erro Interno" }, { status: 500 });

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { UpdateBankAccountSchema } from "@/lib/validations";
+import { serializeDecimals } from "@/lib/serialize";
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -22,7 +23,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       data: validatedData
     });
 
-    return NextResponse.json(updatedAccount);
+    return NextResponse.json(serializeDecimals(updatedAccount));
   } catch (error: any) {
     console.error("ERRO PUT BANK ACCOUNT:", error);
     return NextResponse.json({ error: "Erro Interno" }, { status: 500 });
