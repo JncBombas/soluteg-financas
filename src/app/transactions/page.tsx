@@ -17,6 +17,21 @@ const METHOD_LABELS: Record<string, string> = {
   PIX: "⚡ Pix", BOLETO: "🎫 Boleto", TRANSFER: "↔️ TED"
 };
 
+// Estado exibido derivado por data: pendentes futuros são "Previstos",
+// pendentes no passado são "Vencidos", e no dia/futuro próximo "A vencer".
+function getStatusDisplay(t: any): { label: string, color: string, bg: string } {
+  if (t.status === "PENDING") {
+    const due = new Date(t.dueDate ?? t.date);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+    if (dueDay.getTime() > today.getTime()) return { label: "Previsto", color: "#5b8def", bg: "rgba(91,141,239,0.12)" };
+    if (dueDay.getTime() < today.getTime()) return STATUS_CONFIG.OVERDUE;
+    return { label: "A vencer", color: "var(--warning)", bg: "rgba(255,165,0,0.1)" };
+  }
+  return STATUS_CONFIG[t.status] || STATUS_CONFIG.PENDING;
+}
+
 const hoje = new Date();
 const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
 const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).toISOString().split('T')[0];
@@ -221,7 +236,7 @@ export default function TransactionsPage() {
               const targetDateStr = t.dueDate ?? t.date;
               const dateObj = new Date(targetDateStr);
               const isOverdue = dateObj < new Date() && t.status === "PENDING";
-              const statusConf = STATUS_CONFIG[t.status] || STATUS_CONFIG.PENDING;
+              const statusConf = getStatusDisplay(t);
 
               return (
                 <div key={t.id} className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -254,6 +269,11 @@ export default function TransactionsPage() {
                     <span style={{ background: statusConf.bg, color: statusConf.color, padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-full)', fontSize: '0.72rem' }}>
                       {statusConf.label}
                     </span>
+                    {t.isEstimated && (
+                      <span style={{ background: 'rgba(255,165,0,0.12)', color: 'var(--warning)', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-full)', fontSize: '0.72rem' }}>
+                        Revisar valor
+                      </span>
+                    )}
                   </div>
 
                   <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', paddingTop: '0.25rem', borderTop: '1px solid var(--border-glass)' }}>
@@ -301,7 +321,7 @@ export default function TransactionsPage() {
                   const targetDateStr = t.dueDate ?? t.date;
                   const dateObj = new Date(targetDateStr);
                   const isOverdue = dateObj < new Date() && t.status === "PENDING";
-                  const statusConf = STATUS_CONFIG[t.status] || STATUS_CONFIG.PENDING;
+                  const statusConf = getStatusDisplay(t);
 
                   return (
                     <tr key={t.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
@@ -331,6 +351,11 @@ export default function TransactionsPage() {
                         <span style={{ background: statusConf.bg, color: statusConf.color, padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-full)', fontSize: '0.85rem' }}>
                           {statusConf.label}
                         </span>
+                        {t.isEstimated && (
+                          <span style={{ background: 'rgba(255,165,0,0.12)', color: 'var(--warning)', padding: '0.2rem 0.6rem', borderRadius: 'var(--radius-full)', fontSize: '0.8rem', marginLeft: '0.4rem' }}>
+                            Revisar valor
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: '0.8rem', fontWeight: 'bold', color: t.type === 'INCOME' ? 'var(--success)' : 'var(--danger)' }}>
                         {t.type === 'INCOME' ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', {minimumFractionDigits:2})}

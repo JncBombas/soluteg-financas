@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { LayoutDashboard, Receipt, PieChart, Settings, LogOut,
-         CreditCard, CalendarDays, Wallet, Download, X } from "lucide-react";
+         CreditCard, CalendarDays, Wallet, Download, X, CalendarClock } from "lucide-react";
 import styles from "./layout.module.css";
 import { signOut } from "next-auth/react";
 import { useFinanceContext } from "@/lib/useFinanceContext";
@@ -47,6 +47,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
           { href: '/calendar', icon: CalendarDays, label: 'Calendário' },
           { href: '/transactions', icon: Receipt, label: 'Transações' },
+          { href: '/fixed-expenses', icon: CalendarClock, label: 'Despesas Fixas' },
           { href: '/cards', icon: CreditCard, label: 'Cartões' },
           { href: '/accounts', icon: Wallet, label: 'Contas' },
           { href: '/reports', icon: PieChart, label: 'Relatórios' },

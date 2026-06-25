@@ -56,6 +56,8 @@ model User {
   creditCards       CreditCard[]
   transactions      Transaction[]
   transactionGroups TransactionGroup[]
+  recurringExpenses RecurringExpense[]
+  pushSubscriptions PushSubscription[]
 }
 
 model BankAccount {
@@ -74,6 +76,7 @@ model BankAccount {
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions      Transaction[]
   transactionGroups TransactionGroup[]
+  recurringExpenses RecurringExpense[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 }
@@ -93,6 +96,7 @@ model CreditCard {
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions      Transaction[]
   transactionGroups TransactionGroup[]
+  recurringExpenses RecurringExpense[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 }
@@ -111,6 +115,7 @@ model Category {
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions      Transaction[]
   transactionGroups TransactionGroup[]
+  recurringExpenses RecurringExpense[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   @@unique([name, userId])
@@ -156,16 +161,58 @@ model Transaction {
   occurrenceTotal    Int?
   context            Context           @default(PF)
   transferId         String?
+  isEstimated        Boolean           @default(false)
+  alertBeforeSentAt  DateTime?
+  alertDueSentAt     DateTime?
+  periodKey          String?
   creditCardId       String?
   creditCard         CreditCard?       @relation(fields: [creditCardId], references: [id])
   bankAccountId      String?
   bankAccount        BankAccount?      @relation(fields: [bankAccountId], references: [id])
   transactionGroupId String?
   transactionGroup   TransactionGroup? @relation(fields: [transactionGroupId], references: [id])
+  recurringExpenseId String?
+  recurringExpense   RecurringExpense? @relation(fields: [recurringExpenseId], references: [id])
   categoryId         String?
   category           Category?          @relation(fields: [categoryId], references: [id])
   userId             String
   user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
+  @@unique([recurringExpenseId, periodKey])
+}
+
+model RecurringExpense {
+  id            String        @id @default(cuid())
+  description   String
+  amount        Decimal       @db.Decimal(10, 2)
+  isVariable    Boolean       @default(false)
+  paymentMethod String        @default("BOLETO") // "CASH" | "DEBIT" | "CREDIT" | "PIX" | "BOLETO" | "TRANSFER"
+  dueDay        Int           // 1-28
+  frequency     String        @default("MONTHLY") // "MONTHLY" | "WEEKLY" | "YEARLY"
+  startDate     DateTime
+  endDate       DateTime?
+  isActive      Boolean       @default(true)
+  context       Context       @default(PF)
+  categoryId    String?
+  category      Category?     @relation(fields: [categoryId], references: [id])
+  bankAccountId String?
+  bankAccount   BankAccount?  @relation(fields: [bankAccountId], references: [id])
+  creditCardId  String?
+  creditCard    CreditCard?   @relation(fields: [creditCardId], references: [id])
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions  Transaction[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @db.Text
+  p256dh    String   @db.VarChar(255)
+  auth      String   @db.VarChar(255)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }

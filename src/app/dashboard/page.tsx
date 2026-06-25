@@ -156,7 +156,10 @@ export default function DashboardPage() {
                 const dateColor = diffDays <= 3 ? 'var(--danger)' : 'var(--text-muted)';
                 return (
                   <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: '0.5rem', alignItems: 'center', fontSize: '0.85rem' }}>
-                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.description}</span>
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {t.description}
+                      {t.isEstimated && <span style={{ color: 'var(--warning)', fontSize: '0.72rem' }}> · revisar</span>}
+                    </span>
                     <span style={{ fontWeight: 'bold', color: t.type === 'EXPENSE' ? 'var(--danger)' : 'var(--success)' }}>
                       R$ {t.amount.toLocaleString('pt-BR', {minimumFractionDigits:2})}
                     </span>
