@@ -46,8 +46,8 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         {[
           { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
           { href: '/calendar', icon: CalendarDays, label: 'Calendário' },
-          { href: '/transactions', icon: Receipt, label: 'Transações' },
-          { href: '/fixed-expenses', icon: CalendarClock, label: 'Despesas Fixas' },
+          { href: '/transactions', icon: Receipt, label: 'Transações Avulsas' },
+          { href: '/fixed-transactions', icon: CalendarClock, label: 'Transações Fixas' },
           { href: '/cards', icon: CreditCard, label: 'Cartões' },
           { href: '/accounts', icon: Wallet, label: 'Contas' },
           { href: '/reports', icon: PieChart, label: 'Relatórios' },

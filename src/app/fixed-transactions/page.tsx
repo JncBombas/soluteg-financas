@@ -1,7 +1,7 @@
 "use client";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { RecurringExpenseModal } from "@/components/RecurringExpenseModal";
+import { RecurringTransactionModal } from "@/components/RecurringTransactionModal";
 import { useFinanceContext } from "@/lib/useFinanceContext";
 import { useState, useEffect } from "react";
 import { Loader2, Plus, Pencil, Trash2, X, CalendarClock } from "lucide-react";
@@ -12,7 +12,7 @@ const METHOD_LABELS: Record<string, string> = {
 };
 const FREQ_LABELS: Record<string, string> = { MONTHLY: "Mensal", WEEKLY: "Semanal", YEARLY: "Anual" };
 
-export default function FixedExpensesPage() {
+export default function FixedTransactionsPage() {
   const { context: globalContext } = useFinanceContext();
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,12 +25,12 @@ export default function FixedExpensesPage() {
   const fetchExpenses = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/recurring-expenses?context=${globalContext}`);
+      const res = await fetch(`/api/recurring-transactions?context=${globalContext}`);
       if (res.status === 401) { window.location.href = "/login"; return; }
       const data = await res.json();
       setExpenses(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error("Erro ao buscar despesas fixas", err);
+      console.error("Erro ao buscar transações fixas", err);
     } finally {
       setLoading(false);
     }
@@ -45,13 +45,13 @@ export default function FixedExpensesPage() {
     setDeletingId(id);
     setError(null);
     try {
-      const res = await fetch(`/api/recurring-expenses/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/recurring-transactions/${id}`, { method: "DELETE" });
       if (res.ok) {
         setConfirmDeleteId(null);
         fetchExpenses();
       } else {
         const data = await res.json();
-        setError(data.error || "Erro ao excluir despesa fixa.");
+        setError(data.error || "Erro ao excluir transação fixa.");
         setConfirmDeleteId(null);
       }
     } catch {
@@ -63,16 +63,16 @@ export default function FixedExpensesPage() {
   };
 
   return (
-    <DashboardLayout title="Despesas Fixas">
+    <DashboardLayout title="Transações Fixas">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h3>Despesas Recorrentes</h3>
+        <h3>Transações Recorrentes</h3>
         <button className="btn-primary" onClick={openNew}>
-          <Plus size={20} /> Nova Despesa Fixa
+          <Plus size={20} /> Nova Transação Fixa
         </button>
       </div>
 
       <p className="text-muted" style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-        As despesas fixas geram lançamentos automaticamente conforme o vencimento se aproxima (≈30 dias antes) e
+        As transações fixas geram lançamentos automaticamente conforme o vencimento se aproxima (≈30 dias antes) e
         avisam você 3 dias antes e no dia do vencimento.
       </p>
 
@@ -93,7 +93,7 @@ export default function FixedExpensesPage() {
         ) : expenses.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2.5rem 0', color: 'var(--text-muted)' }}>
             <CalendarClock size={40} style={{ marginBottom: '0.75rem', opacity: 0.5 }} />
-            <p>Nenhuma despesa fixa cadastrada.</p>
+            <p>Nenhuma transação fixa cadastrada.</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -109,6 +109,12 @@ export default function FixedExpensesPage() {
                       <span style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-full)', fontSize: '0.7rem' }}>Inativa</span>
                     )}
                     <span style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-full)', fontSize: '0.7rem' }}>{exp.context}</span>
+                    {exp.type === "INCOME" && (
+                      <span style={{ background: 'rgba(0,255,136,0.1)', color: 'var(--success)', padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-full)', fontSize: '0.7rem' }}>Receita</span>
+                    )}
+                    {exp.type === "EXPENSE" && (
+                      <span style={{ background: 'rgba(255,71,87,0.1)', color: 'var(--danger)', padding: '0.1rem 0.5rem', borderRadius: 'var(--radius-full)', fontSize: '0.7rem' }}>Despesa</span>
+                    )}
                   </div>
                   <p className="text-muted" style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>
                     {FREQ_LABELS[exp.frequency] || exp.frequency} · vence dia {exp.dueDay} · {METHOD_LABELS[exp.paymentMethod] || exp.paymentMethod}
@@ -116,8 +122,8 @@ export default function FixedExpensesPage() {
                   </p>
                 </div>
                 <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                  <p style={{ fontWeight: 'bold', color: 'var(--danger)' }}>
-                    {exp.isVariable ? '~ ' : ''}R$ {Number(exp.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  <p style={{ fontWeight: 'bold', color: exp.type === 'INCOME' ? 'var(--success)' : 'var(--danger)' }}>
+                    {exp.type === 'INCOME' ? '+' : '-'}{exp.isVariable ? '~ ' : ''}R$ {Number(exp.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.25rem' }}>
@@ -145,9 +151,9 @@ export default function FixedExpensesPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div className="glass-card" style={{ width: '100%', maxWidth: '400px', padding: '2rem', textAlign: 'center' }}>
             <Trash2 size={48} color="var(--danger)" style={{ marginBottom: '1rem' }} />
-            <h3 style={{ marginBottom: '1rem' }}>Excluir Despesa Fixa?</h3>
+            <h3 style={{ marginBottom: '1rem' }}>Excluir Transação Fixa?</h3>
             <p className="text-muted" style={{ marginBottom: '2rem' }}>
-              Os lançamentos previstos (ainda não pagos) serão removidos. O histórico já pago é mantido.
+              Os lançamentos previstos (ainda não concluídos) serão removidos. O histórico já concluído é mantido.
             </p>
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setConfirmDeleteId(null)} disabled={deletingId === confirmDeleteId}>Cancelar</button>
@@ -160,7 +166,7 @@ export default function FixedExpensesPage() {
         </div>
       )}
 
-      <RecurringExpenseModal
+      <RecurringTransactionModal
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setEditExpense(null); }}
         onSuccess={() => fetchExpenses()}

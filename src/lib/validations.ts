@@ -80,9 +80,10 @@ export const CreditCardSchema = z.object({
 
 export const UpdateCreditCardSchema = CreditCardSchema.partial();
 
-export const RecurringExpenseSchema = z.object({
+export const RecurringTransactionSchema = z.object({
   description: z.string().min(2, "A descrição deve ter pelo menos 2 caracteres").max(255),
   amount: z.number().positive("O valor deve ser positivo"),
+  type: z.enum(["INCOME", "EXPENSE"]).default("EXPENSE"),
   isVariable: z.boolean().default(false),
   paymentMethod: z.enum(["CASH", "DEBIT", "CREDIT", "PIX", "BOLETO", "TRANSFER"]).default("BOLETO"),
   dueDay: z.number().int().min(1).max(28),
@@ -96,7 +97,7 @@ export const RecurringExpenseSchema = z.object({
   creditCardId: z.string().optional().nullable(),
 });
 
-export const UpdateRecurringExpenseSchema = RecurringExpenseSchema.partial();
+export const UpdateRecurringTransactionSchema = RecurringTransactionSchema.partial();
 
 export const PushSubscriptionSchema = z.object({
   endpoint: z.string().url(),

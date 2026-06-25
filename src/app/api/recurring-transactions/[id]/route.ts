@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
-import { UpdateRecurringExpenseSchema } from "@/lib/validations";
+import { UpdateRecurringTransactionSchema } from "@/lib/validations";
 import { serializeDecimals } from "@/lib/serialize";
 import { parseInputDate } from "@/lib/businessDays";
 import { z } from "zod";
@@ -32,12 +32,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const userId = session.user.id;
 
     const { id } = await params;
-    const expense = await prisma.recurringExpense.findUnique({ where: { id } });
-    if (!expense) return NextResponse.json({ error: "Despesa fixa não encontrada" }, { status: 404 });
+    const expense = await prisma.recurringTransaction.findUnique({ where: { id } });
+    if (!expense) return NextResponse.json({ error: "Transação fixa não encontrada" }, { status: 404 });
     if (expense.userId !== userId) return NextResponse.json({ error: "Acesso Negado" }, { status: 403 });
 
     const body = await req.json();
-    const data = UpdateRecurringExpenseSchema.parse(body);
+    const data = UpdateRecurringTransactionSchema.parse(body);
 
     const erroVinculo = await validarVinculos(userId, data);
     if (erroVinculo) return NextResponse.json({ error: erroVinculo }, { status: 400 });
@@ -46,14 +46,14 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (data.startDate) dataToUpdate.startDate = parseInputDate(data.startDate);
     if (data.endDate !== undefined) dataToUpdate.endDate = data.endDate ? parseInputDate(data.endDate) : null;
 
-    const updated = await prisma.recurringExpense.update({ where: { id }, data: dataToUpdate });
+    const updated = await prisma.recurringTransaction.update({ where: { id }, data: dataToUpdate });
 
     return NextResponse.json(serializeDecimals(updated));
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Dados inválidos", details: error.issues }, { status: 400 });
     }
-    console.error("Erro PUT Despesa Fixa:", error);
+    console.error("Erro PUT Transação Fixa:", error);
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }
@@ -65,24 +65,24 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const userId = session.user.id;
 
     const { id } = await params;
-    const expense = await prisma.recurringExpense.findUnique({ where: { id } });
-    if (!expense) return NextResponse.json({ error: "Despesa fixa não encontrada" }, { status: 404 });
+    const expense = await prisma.recurringTransaction.findUnique({ where: { id } });
+    if (!expense) return NextResponse.json({ error: "Transação fixa não encontrada" }, { status: 404 });
     if (expense.userId !== userId) return NextResponse.json({ error: "Acesso Negado" }, { status: 403 });
 
     // Remove lançamentos "Previstos" ainda não pagos; preserva o histórico pago
     // desvinculando-o da definição (mantém o registro financeiro).
     await prisma.$transaction([
-      prisma.transaction.deleteMany({ where: { recurringExpenseId: id, status: "PENDING" } }),
+      prisma.transaction.deleteMany({ where: { recurringTransactionId: id, status: "PENDING" } }),
       prisma.transaction.updateMany({
-        where: { recurringExpenseId: id },
-        data: { recurringExpenseId: null, periodKey: null },
+        where: { recurringTransactionId: id },
+        data: { recurringTransactionId: null, periodKey: null },
       }),
-      prisma.recurringExpense.delete({ where: { id } }),
+      prisma.recurringTransaction.delete({ where: { id } }),
     ]);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Erro DELETE Despesa Fixa:", error);
+    console.error("Erro DELETE Transação Fixa:", error);
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

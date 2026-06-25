@@ -104,3 +104,15 @@ A cada etapa: `npx tsc --noEmit` (limpo) e `npx prisma validate` (OK). A feature
 |--------|-----------|
 | `145bb79` | Correções de segurança + auditoria (S1–S3, P1–P7, migração Decimal) |
 | `830a60e` | Feature Despesas Fixas + lançamentos previstos + alertas Web Push |
+| Atual | Refatoração de Despesas Fixas para Transações Fixas (com suporte a Receitas) e correção de build PWA |
+
+---
+
+## 9. Refatoração — Transações Fixas (Receitas e Despesas)
+
+Em atendimento à solicitação de evolução do sistema:
+- **Evolução de Domínio:** A funcionalidade exclusiva de "Despesas Fixas" foi expandida para suportar também "Receitas Fixas", consolidando-se sob o nome de **Transações Fixas**.
+- **Schema Prisma:** O modelo `RecurringExpense` foi renomeado para `RecurringTransaction`. Foi adicionado o campo `type String @default("EXPENSE")` para classificar os tipos (`INCOME` / `EXPENSE`).
+- **Rotas e Cron:** Todas as APIs foram migradas de `/api/recurring-expenses` para `/api/recurring-transactions`. O script de previsão diária (`/api/cron/daily`) agora herda o tipo da transação fixa no lançamento `PENDING`.
+- **UI & UX:** O menu foi renomeado para "Transações Avulsas" e "Transações Fixas". A página `/fixed-transactions` foi atualizada e o modal ganhou botões interativos para classificar entre Receita (Verde) e Despesa (Vermelho).
+- **Infraestrutura:** Pacote `web-push` e tipagens (`@types/web-push`) foram instalados para resolver problemas prévios de build. Schema sincronizado no banco de dados.

@@ -56,7 +56,7 @@ model User {
   creditCards       CreditCard[]
   transactions      Transaction[]
   transactionGroups TransactionGroup[]
-  recurringExpenses RecurringExpense[]
+  recurringTransactions RecurringTransaction[]
   pushSubscriptions PushSubscription[]
 }
 
@@ -76,7 +76,7 @@ model BankAccount {
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions      Transaction[]
   transactionGroups TransactionGroup[]
-  recurringExpenses RecurringExpense[]
+  recurringTransactions RecurringTransaction[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 }
@@ -96,7 +96,7 @@ model CreditCard {
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions      Transaction[]
   transactionGroups TransactionGroup[]
-  recurringExpenses RecurringExpense[]
+  recurringTransactions RecurringTransaction[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 }
@@ -115,7 +115,7 @@ model Category {
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions      Transaction[]
   transactionGroups TransactionGroup[]
-  recurringExpenses RecurringExpense[]
+  recurringTransactions RecurringTransaction[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   @@unique([name, userId])
@@ -171,21 +171,22 @@ model Transaction {
   bankAccount        BankAccount?      @relation(fields: [bankAccountId], references: [id])
   transactionGroupId String?
   transactionGroup   TransactionGroup? @relation(fields: [transactionGroupId], references: [id])
-  recurringExpenseId String?
-  recurringExpense   RecurringExpense? @relation(fields: [recurringExpenseId], references: [id])
+  recurringTransactionId String?
+  recurringTransaction   RecurringTransaction? @relation(fields: [recurringTransactionId], references: [id])
   categoryId         String?
   category           Category?          @relation(fields: [categoryId], references: [id])
   userId             String
   user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
-  @@unique([recurringExpenseId, periodKey])
+  @@unique([recurringTransactionId, periodKey])
 }
 
-model RecurringExpense {
+model RecurringTransaction {
   id            String        @id @default(cuid())
   description   String
   amount        Decimal       @db.Decimal(10, 2)
+  type          String        @default("EXPENSE") // "INCOME" | "EXPENSE"
   isVariable    Boolean       @default(false)
   paymentMethod String        @default("BOLETO") // "CASH" | "DEBIT" | "CREDIT" | "PIX" | "BOLETO" | "TRANSFER"
   dueDay        Int           // 1-28

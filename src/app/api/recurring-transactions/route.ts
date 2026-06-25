@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
-import { RecurringExpenseSchema } from "@/lib/validations";
+import { RecurringTransactionSchema } from "@/lib/validations";
 import { serializeDecimals } from "@/lib/serialize";
 import { parseInputDate } from "@/lib/businessDays";
 import { z } from "zod";
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
       ...(contextFilter && contextFilter !== "ALL" ? { context: contextFilter } : {}),
     };
 
-    const expenses = await prisma.recurringExpense.findMany({
+    const expenses = await prisma.recurringTransaction.findMany({
       where: whereClause,
       orderBy: [{ isActive: "desc" }, { dueDay: "asc" }],
       include: {
@@ -51,7 +51,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(serializeDecimals(expenses));
   } catch (error) {
-    console.error("Erro GET Despesas Fixas:", error);
+    console.error("Erro GET Transações Fixas:", error);
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }
@@ -63,15 +63,16 @@ export async function POST(req: Request) {
     const userId = session.user.id;
 
     const body = await req.json();
-    const data = RecurringExpenseSchema.parse(body);
+    const data = RecurringTransactionSchema.parse(body);
 
     const erroVinculo = await validarVinculos(userId, data);
     if (erroVinculo) return NextResponse.json({ error: erroVinculo }, { status: 400 });
 
-    const expense = await prisma.recurringExpense.create({
+    const expense = await prisma.recurringTransaction.create({
       data: {
         description: data.description,
         amount: data.amount,
+        type: data.type,
         isVariable: data.isVariable,
         paymentMethod: data.paymentMethod,
         dueDay: data.dueDay,
@@ -92,7 +93,7 @@ export async function POST(req: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Dados inválidos", details: error.issues }, { status: 400 });
     }
-    console.error("Erro POST Despesa Fixa:", error);
+    console.error("Erro POST Transação Fixa:", error);
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }

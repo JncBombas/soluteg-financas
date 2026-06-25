@@ -8,7 +8,7 @@ interface Category { id: string; name: string; type: string; group: string; }
 interface BankAccount { id: string; name: string; type: string; }
 interface CreditCard { id: string; name: string; brand: string; lastFourDigits: string | null; }
 
-interface RecurringExpenseModalProps {
+interface RecurringTransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -30,7 +30,7 @@ const FREQUENCIES = [
   { value: "YEARLY", label: "Anual" },
 ];
 
-export function RecurringExpenseModal({ isOpen, onClose, onSuccess, editExpense }: RecurringExpenseModalProps) {
+export function RecurringTransactionModal({ isOpen, onClose, onSuccess, editExpense }: RecurringTransactionModalProps) {
   const { context: globalContext } = useFinanceContext();
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -41,6 +41,7 @@ export function RecurringExpenseModal({ isOpen, onClose, onSuccess, editExpense 
   const getToday = () => new Date().toISOString().split("T")[0];
 
   const [description, setDescription] = useState("");
+  const [type, setType] = useState("EXPENSE");
   const [amount, setAmount] = useState("");
   const [isVariable, setIsVariable] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("BOLETO");
@@ -78,6 +79,7 @@ export function RecurringExpenseModal({ isOpen, onClose, onSuccess, editExpense 
   useEffect(() => {
     if (editExpense) {
       setDescription(editExpense.description || "");
+      setType(editExpense.type || "EXPENSE");
       setAmount(editExpense.amount?.toString() || "");
       setIsVariable(!!editExpense.isVariable);
       setPaymentMethod(editExpense.paymentMethod || "BOLETO");
@@ -92,6 +94,7 @@ export function RecurringExpenseModal({ isOpen, onClose, onSuccess, editExpense 
       setCreditCardId(editExpense.creditCardId || "");
     } else {
       setDescription("");
+      setType("EXPENSE");
       setAmount("");
       setIsVariable(false);
       setPaymentMethod("BOLETO");
@@ -110,7 +113,7 @@ export function RecurringExpenseModal({ isOpen, onClose, onSuccess, editExpense 
 
   const isEditMode = editExpense != null;
   const showCreditCard = paymentMethod === "CREDIT";
-  const categoryOptions = categories.filter(c => c.type === "EXPENSE");
+  const categoryOptions = categories.filter(c => c.type === type);
   const grupos = Array.from(new Set(categoryOptions.map(c => c.group)));
 
   useEffect(() => {
@@ -131,6 +134,7 @@ export function RecurringExpenseModal({ isOpen, onClose, onSuccess, editExpense 
       const payload: any = {
         description,
         amount: parseFloat(amount.replace(",", ".")),
+        type,
         isVariable,
         paymentMethod,
         dueDay: parseInt(dueDay),
@@ -144,7 +148,7 @@ export function RecurringExpenseModal({ isOpen, onClose, onSuccess, editExpense 
         creditCardId: showCreditCard ? (creditCardId || null) : null,
       };
 
-      const url = isEditMode ? `/api/recurring-expenses/${editExpense.id}` : "/api/recurring-expenses";
+      const url = isEditMode ? `/api/recurring-transactions/${editExpense.id}` : "/api/recurring-transactions";
       const method = isEditMode ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -158,7 +162,7 @@ export function RecurringExpenseModal({ isOpen, onClose, onSuccess, editExpense 
         onClose();
       } else {
         const data = await res.json();
-        setError(data.error || "Erro ao salvar despesa fixa.");
+        setError(data.error || "Erro ao salvar transação fixa.");
       }
     } catch {
       setError("Erro interno do sistema.");
@@ -183,7 +187,7 @@ export function RecurringExpenseModal({ isOpen, onClose, onSuccess, editExpense 
       }}>
         <div style={{ width: '40px', height: '4px', background: 'rgba(255,255,255,0.2)', borderRadius: '2px', margin: '0 auto 1rem auto' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <h3>{isEditMode ? "Editar Despesa Fixa" : "Nova Despesa Fixa"}</h3>
+          <h3>{isEditMode ? "Editar Transação Fixa" : "Nova Transação Fixa"}</h3>
           <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
             <X size={24} />
           </button>
@@ -213,6 +217,19 @@ export function RecurringExpenseModal({ isOpen, onClose, onSuccess, editExpense 
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={labelStyle}>Tipo*</label>
+            <div style={{ display: 'flex', gap: '1rem', background: 'rgba(0,0,0,0.2)', padding: '0.4rem', borderRadius: 'var(--radius-sm)' }}>
+              <button onClick={() => setType("EXPENSE")} className={type === "EXPENSE" ? "btn-primary" : ""}
+                style={{ flex: 1, padding: '0.5rem', background: type === "EXPENSE" ? 'var(--danger)' : 'transparent', color: type === "EXPENSE" ? '#fff' : 'var(--text-primary)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600 }}>
+                Despesa
+              </button>
+              <button onClick={() => setType("INCOME")} className={type === "INCOME" ? "btn-primary" : ""}
+                style={{ flex: 1, padding: '0.5rem', background: type === "INCOME" ? 'var(--success)' : 'transparent', color: type === "INCOME" ? 'var(--bg-primary)' : 'var(--text-primary)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontWeight: 600 }}>
+                Receita
+              </button>
+            </div>
+          </div>
           <div>
             <label style={labelStyle}>Descrição*</label>
             <input type="text" placeholder="Ex: Aluguel, Internet..." className="input-field" value={description} onChange={e => setDescription(e.target.value)} />

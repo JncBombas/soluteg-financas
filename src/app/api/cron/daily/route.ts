@@ -68,16 +68,16 @@ async function executar() {
   const hoje = noonUTC(agora.getUTCFullYear(), agora.getUTCMonth(), agora.getUTCDate());
   const fim = new Date(hoje.getTime() + MATERIALIZE_WINDOW_DAYS * 86400000);
 
-  // 1) Materialização das despesas fixas ativas.
+  // 1) Materialização das transações fixas ativas.
   let materializadas = 0;
-  const expenses = await prisma.recurringExpense.findMany({ where: { isActive: true } });
+  const expenses = await prisma.recurringTransaction.findMany({ where: { isActive: true } });
 
   for (const exp of expenses) {
     const vencimentos = gerarVencimentos(exp, hoje, fim);
     for (const nominal of vencimentos) {
       const periodKey = isoDay(nominal);
       const existe = await prisma.transaction.findFirst({
-        where: { recurringExpenseId: exp.id, periodKey },
+        where: { recurringTransactionId: exp.id, periodKey },
         select: { id: true },
       });
       if (existe) continue;
@@ -89,7 +89,7 @@ async function executar() {
           description: exp.description,
           date: dueDate,
           dueDate,
-          type: "EXPENSE",
+          type: exp.type,
           paymentMethod: exp.paymentMethod,
           status: "PENDING",
           isEstimated: exp.isVariable,
@@ -97,7 +97,7 @@ async function executar() {
           categoryId: exp.categoryId,
           bankAccountId: exp.bankAccountId,
           creditCardId: exp.creditCardId,
-          recurringExpenseId: exp.id,
+          recurringTransactionId: exp.id,
           periodKey,
           userId: exp.userId,
         },
@@ -106,7 +106,7 @@ async function executar() {
     }
   }
 
-  // 2) Alertas de vencimento (3 dias antes e no dia) — despesas fixas e avulsos.
+  // 2) Alertas de vencimento (3 dias antes e no dia) — transações fixas e avulsos.
   const inicioHoje = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), agora.getUTCDate(), 0, 0, 0));
   const fimHoje = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth(), agora.getUTCDate(), 23, 59, 59, 999));
   const inicioAntes = new Date(inicioHoje.getTime() + ALERT_DAYS_BEFORE * 86400000);
@@ -144,7 +144,7 @@ async function executar() {
     await prisma.transaction.update({ where: { id: t.id }, data: { alertDueSentAt: new Date() } });
   }
 
-  return { materializadas, alertasEnviados, despesasAtivas: expenses.length };
+  return { materializadas, alertasEnviados, transacoesAtivas: expenses.length };
 }
 
 export async function GET(req: Request) {
