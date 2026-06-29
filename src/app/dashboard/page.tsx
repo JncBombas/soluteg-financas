@@ -6,11 +6,12 @@ import { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { TransactionModal } from "@/components/TransactionModal";
 import { toLocalISOString } from "@/lib/businessDays";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [monthTransactions, setMonthTransactions] = useState<any[]>([]);
-  const [yearTransactions, setYearTransactions] = useState<any[]>([]);
+  const [projectionData, setProjectionData] = useState<any[]>([]);
   const [pendingTransactions, setPendingTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -34,17 +35,15 @@ export default function DashboardPage() {
       const mesAtual = hoje.getMonth();
       const primeiroDiaMes = toLocalISOString(new Date(anoAtual, mesAtual, 1));
       const ultimoDiaMes = toLocalISOString(new Date(anoAtual, mesAtual + 1, 0));
-      const primeiroDiaAno = `${anoAtual}-01-01`;
-      const ultimoDiaAno = `${anoAtual}-12-31`;
 
       const hojeStr = toLocalISOString(hoje);
       const hojeMais30 = new Date(hoje);
       hojeMais30.setDate(hoje.getDate() + 30);
       const hojeMais30Str = toLocalISOString(hojeMais30);
 
-      const [resMonth, resYear, resPending] = await Promise.all([
+      const [resMonth, resProjection, resPending] = await Promise.all([
         fetch(`/api/transactions?dateFrom=${primeiroDiaMes}&dateTo=${ultimoDiaMes}`),
-        fetch(`/api/transactions?dateFrom=${primeiroDiaAno}&dateTo=${ultimoDiaAno}`),
+        fetch(`/api/projections?months=12`),
         fetch(`/api/transactions?status=PENDING&dateFrom=${hojeStr}&dateTo=${hojeMais30Str}`)
       ]);
 
@@ -53,12 +52,12 @@ export default function DashboardPage() {
         return;
       }
 
-      const [dataMonth, dataYear, dataPending] = await Promise.all([
-        resMonth.json(), resYear.json(), resPending.json()
+      const [dataMonth, dataProjection, dataPending] = await Promise.all([
+        resMonth.json(), resProjection.json(), resPending.json()
       ]);
 
       setMonthTransactions(Array.isArray(dataMonth) ? dataMonth : []);
-      setYearTransactions(Array.isArray(dataYear) ? dataYear : []);
+      setProjectionData(Array.isArray(dataProjection?.data) ? dataProjection.data : []);
       
       const pendings = Array.isArray(dataPending) ? dataPending : [];
       pendings.sort((a: any, b: any) => new Date(a.dueDate || a.date).getTime() - new Date(b.dueDate || b.date).getTime());
@@ -80,17 +79,13 @@ export default function DashboardPage() {
 
   const hoje = new Date();
   const nomeMes = hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-  const anoAtual = hoje.getFullYear();
 
-  const meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-  const chartData = meses.map(mes => ({ mes, receitas: 0, despesas: 0 }));
-
-  yearTransactions.forEach((t: any) => {
-    const dataObj = new Date(t.date);
-    const m = dataObj.getMonth();
-    if (t.type === 'INCOME') chartData[m].receitas += t.amount;
-    if (t.type === 'EXPENSE') chartData[m].despesas += t.amount;
-  });
+  // Projeção consolidada (PF + PJ) dos próximos 12 meses.
+  const chartData = projectionData.map((r: any) => ({
+    mes: r.label,
+    receitas: (r.PF?.income || 0) + (r.PJ?.income || 0),
+    despesas: (r.PF?.expense || 0) + (r.PJ?.expense || 0),
+  }));
 
   return (
     <DashboardLayout title="Dashboard">
@@ -174,7 +169,12 @@ export default function DashboardPage() {
 
       <div className="dashboard-grid">
         <div className="glass-panel" style={{ padding: '1.5rem', minHeight: '350px' }}>
-          <h3 style={{ marginBottom: '1.5rem' }}>Fluxo por Mês — {anoAtual}</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h3 style={{ margin: 0 }}>Projeção de Fluxo — próximos 12 meses</h3>
+            <Link href="/projections" style={{ fontSize: '0.8rem', color: 'var(--accent-primary)' }}>
+              Ver projeções →
+            </Link>
+          </div>
           <div style={{ width: '100%', height: isMobile ? '200px' : '250px' }}>
             {loading ? (
               <div style={{ display: 'flex', height: '100%', justifyContent: 'center', alignItems: 'center' }}>
