@@ -3,7 +3,7 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { useState, useEffect, useMemo } from "react";
 import { ComposedChart, LineChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
-import { Loader2, TrendingUp, TrendingDown, Wallet, AlertTriangle } from "lucide-react";
+import { Loader2, TrendingUp, TrendingDown, Wallet, AlertTriangle, CreditCard } from "lucide-react";
 
 type Bucket = { income: number; expense: number };
 type MonthRow = { month: string; label: string; PF: Bucket; PJ: Bucket };
@@ -19,6 +19,7 @@ export default function ProjectionsPage() {
   const [showDespesas, setShowDespesas] = useState(true);
   const [rows, setRows] = useState<MonthRow[]>([]);
   const [accounts, setAccounts] = useState<any[]>([]);
+  const [cards, setCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -38,6 +39,7 @@ export default function ProjectionsPage() {
         const json = await res.json();
         setRows(Array.isArray(json?.data) ? json.data : []);
         setAccounts(Array.isArray(json?.accounts) ? json.accounts : []);
+        setCards(Array.isArray(json?.cards) ? json.cards : []);
       } catch (err) {
         console.error("Erro ao buscar projeções", err);
       } finally {
@@ -77,6 +79,19 @@ export default function ProjectionsPage() {
       return row;
     });
   }, [rows, accountsView]);
+
+  // Cartões filtrados pelo contexto e série de fatura projetada (empilhada por cartão).
+  const cardsView = useMemo(
+    () => cards.filter((c) => view === "ALL" || c.context === view),
+    [cards, view]
+  );
+  const cardsChartData = useMemo(() => {
+    return rows.map((r, i) => {
+      const row: Record<string, any> = { label: r.label };
+      cardsView.forEach((c) => { row[c.id] = c.invoices?.[i] ?? 0; });
+      return row;
+    });
+  }, [rows, cardsView]);
 
   return (
     <DashboardLayout title="Projeções">
@@ -244,6 +259,75 @@ export default function ProjectionsPage() {
                       <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginTop: "0.6rem", fontSize: "0.75rem", color: "var(--danger)" }}>
                         <AlertTriangle size={14} />
                         Fica negativo {a.firstNegativeLabel ? `em ${a.firstNegativeLabel}` : ""} (mín. {BRL(a.minBalance)})
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Projeção de fatura dos cartões */}
+      <div className="glass-panel" style={{ padding: "1.5rem", minHeight: "300px", marginTop: "1.5rem" }}>
+        <h3 style={{ marginBottom: "1.5rem" }}>Fatura projetada dos cartões</h3>
+
+        {loading ? (
+          <div style={{ display: "flex", height: "240px", justifyContent: "center", alignItems: "center" }}>
+            <Loader2 className="spin" size={32} color="var(--accent-primary)" />
+          </div>
+        ) : cardsView.length === 0 ? (
+          <div style={{ display: "flex", height: "120px", justifyContent: "center", alignItems: "center", color: "var(--text-muted)", textAlign: "center" }}>
+            Nenhum cartão {view !== "ALL" ? `(${view}) ` : ""}ativo. Despesas no cartão (parcelas e fixas) aparecem aqui pelo mês de vencimento da fatura.
+          </div>
+        ) : (
+          <>
+            <div style={{ width: "100%", height: isMobile ? "240px" : "300px", marginBottom: "1.5rem" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={cardsChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis dataKey="label" stroke="var(--text-muted)" fontSize={12} />
+                  <YAxis stroke="var(--text-muted)" fontSize={12} tickFormatter={(v) => `${(v / 1000).toLocaleString("pt-BR")}k`} />
+                  <Tooltip
+                    contentStyle={{ background: "var(--bg-secondary)", border: "1px solid var(--border-glass)" }}
+                    formatter={(value: any, name: any) => [BRL(Number(value)), name]}
+                  />
+                  <Legend />
+                  {cardsView.map((c) => (
+                    <Bar key={c.id} dataKey={c.id} name={c.name} stackId="fatura" fill={c.color || "var(--accent-primary)"} />
+                  ))}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
+              {cardsView.map((c) => {
+                const proxima = c.invoices?.[0] ?? 0;
+                const usoLimite = c.limit > 0 ? (c.maxInvoice / c.limit) * 100 : 0;
+                return (
+                  <div key={c.id} className="glass-card" style={{ padding: "1rem", borderLeft: `3px solid ${c.color || "var(--accent-primary)"}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontWeight: 600 }}>
+                        <CreditCard size={15} /> {c.name}
+                      </span>
+                      <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.05)", padding: "0.1rem 0.4rem", borderRadius: "var(--radius-full)" }}>{c.context}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                      <span>Próxima ({rows[0]?.label})</span><span>{BRL(proxima)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginTop: "0.2rem" }}>
+                      <span style={{ color: "var(--text-muted)" }}>Maior no período</span>
+                      <span style={{ fontWeight: "bold" }}>{BRL(c.maxInvoice)}</span>
+                    </div>
+                    {c.limit > 0 && (
+                      <div style={{ fontSize: "0.75rem", color: c.excedeLimite ? "var(--danger)" : "var(--text-muted)", marginTop: "0.4rem" }}>
+                        Limite {BRL(c.limit)} · pico {usoLimite.toFixed(0)}%
+                      </div>
+                    )}
+                    {c.excedeLimite && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--danger)" }}>
+                        <AlertTriangle size={14} /> Fatura projetada ultrapassa o limite
                       </div>
                     )}
                   </div>

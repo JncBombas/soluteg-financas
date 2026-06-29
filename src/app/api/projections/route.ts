@@ -88,7 +88,7 @@ export async function GET(req: Request) {
     // Acumuladores: por mês → { PF: bucket, PJ: bucket }.
     const acc = meses.map(() => ({ PF: novoBucket(), PJ: novoBucket() }));
 
-    const [fixas, futuros, contas, paidSums] = await Promise.all([
+    const [fixas, futuros, contas, paidSums, cartoes] = await Promise.all([
       prisma.recurringTransaction.findMany({ where: { userId, isActive: true } }),
       prisma.transaction.findMany({
         where: {
@@ -100,7 +100,7 @@ export async function GET(req: Request) {
             { AND: [{ dueDate: null }, { date: { gte: janelaInicio, lte: janelaFim } }] },
           ],
         },
-        select: { amount: true, type: true, context: true, date: true, dueDate: true, status: true, bankAccountId: true },
+        select: { amount: true, type: true, context: true, date: true, dueDate: true, status: true, bankAccountId: true, creditCardId: true },
       }),
       prisma.bankAccount.findMany({
         where: { userId },
@@ -111,6 +111,11 @@ export async function GET(req: Request) {
         by: ["bankAccountId", "type"],
         where: { userId, status: "PAID" },
         _sum: { amount: true },
+      }),
+      prisma.creditCard.findMany({
+        where: { userId, isActive: true },
+        select: { id: true, name: true, context: true, color: true, dueDay: true, limit: true },
+        orderBy: { name: "asc" },
       }),
     ]);
 
@@ -194,7 +199,45 @@ export async function GET(req: Request) {
       };
     });
 
-    return NextResponse.json({ months, data, accounts });
+    // 4) Projeção de fatura por cartão de crédito.
+    // Fatura do mês = soma das despesas no cartão com vencimento naquele mês
+    // (parcelamentos/avulsos futuros pelo dueDate + fixas no cartão por ocorrência).
+    const cards = cartoes.map((card) => {
+      const invoices = meses.map(() => 0);
+
+      for (const exp of fixas) {
+        if (exp.creditCardId !== card.id || exp.type !== "EXPENSE") continue;
+        const valor = Number(exp.amount);
+        for (let idx = 0; idx < meses.length; idx++) {
+          const n = ocorrenciasNoMes(exp, meses[idx].year, meses[idx].monthIndex);
+          if (n > 0) invoices[idx] += valor * n;
+        }
+      }
+      for (const t of futuros) {
+        if (t.creditCardId !== card.id || t.type !== "EXPENSE" || t.status === "PAID") continue;
+        const alvo = t.dueDate ?? t.date;
+        const dt = new Date(alvo);
+        const idx = indicePorKey.get(monthKey(dt.getUTCFullYear(), dt.getUTCMonth()));
+        if (idx === undefined) continue;
+        invoices[idx] += Number(t.amount);
+      }
+
+      const maxInvoice = invoices.length ? Math.max(...invoices) : 0;
+      const limit = Number(card.limit);
+      return {
+        id: card.id,
+        name: card.name,
+        context: card.context,
+        color: card.color,
+        dueDay: card.dueDay,
+        limit,
+        invoices,
+        maxInvoice,
+        excedeLimite: limit > 0 && maxInvoice > limit,
+      };
+    });
+
+    return NextResponse.json({ months, data, accounts, cards });
   } catch (error) {
     console.error("Erro GET Projeções:", error);
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
