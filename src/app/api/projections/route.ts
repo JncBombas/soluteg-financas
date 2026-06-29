@@ -88,7 +88,7 @@ export async function GET(req: Request) {
     // Acumuladores: por mês → { PF: bucket, PJ: bucket }.
     const acc = meses.map(() => ({ PF: novoBucket(), PJ: novoBucket() }));
 
-    const [fixas, futuros] = await Promise.all([
+    const [fixas, futuros, contas, paidSums] = await Promise.all([
       prisma.recurringTransaction.findMany({ where: { userId, isActive: true } }),
       prisma.transaction.findMany({
         where: {
@@ -100,7 +100,17 @@ export async function GET(req: Request) {
             { AND: [{ dueDate: null }, { date: { gte: janelaInicio, lte: janelaFim } }] },
           ],
         },
-        select: { amount: true, type: true, context: true, date: true, dueDate: true },
+        select: { amount: true, type: true, context: true, date: true, dueDate: true, status: true, bankAccountId: true },
+      }),
+      prisma.bankAccount.findMany({
+        where: { userId },
+        select: { id: true, name: true, context: true, color: true, initialBalance: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.transaction.groupBy({
+        by: ["bankAccountId", "type"],
+        where: { userId, status: "PAID" },
+        _sum: { amount: true },
       }),
     ]);
 
@@ -134,7 +144,57 @@ export async function GET(req: Request) {
       PJ: acc[idx].PJ,
     }));
 
-    return NextResponse.json({ months, data });
+    // 3) Projeção de saldo por conta bancária.
+    // Saldo atual = initialBalance + lançamentos PAID (já realizados).
+    const saldoPaid = new Map<string, number>();
+    for (const s of paidSums) {
+      if (!s.bankAccountId) continue;
+      const delta = (s.type === "INCOME" ? 1 : -1) * Number(s._sum.amount || 0);
+      saldoPaid.set(s.bankAccountId, (saldoPaid.get(s.bankAccountId) || 0) + delta);
+    }
+
+    const accounts = contas.map((conta) => {
+      const currentBalance = Number(conta.initialBalance) + (saldoPaid.get(conta.id) || 0);
+      const deltas = meses.map(() => 0);
+
+      // Fixas vinculadas a esta conta (nenhuma materializada → seguro projetar todas).
+      for (const exp of fixas) {
+        if (exp.bankAccountId !== conta.id) continue;
+        const sign = exp.type === "INCOME" ? 1 : -1;
+        const valor = Number(exp.amount);
+        for (let idx = 0; idx < meses.length; idx++) {
+          const n = ocorrenciasNoMes(exp, meses[idx].year, meses[idx].monthIndex);
+          if (n > 0) deltas[idx] += sign * valor * n;
+        }
+      }
+      // Lançamentos futuros ainda não pagos (evita dupla contagem com o saldo atual).
+      for (const t of futuros) {
+        if (t.bankAccountId !== conta.id || t.status === "PAID") continue;
+        const alvo = t.dueDate ?? t.date;
+        const dt = new Date(alvo);
+        const idx = indicePorKey.get(monthKey(dt.getUTCFullYear(), dt.getUTCMonth()));
+        if (idx === undefined) continue;
+        deltas[idx] += (t.type === "INCOME" ? 1 : -1) * Number(t.amount);
+      }
+
+      let running = currentBalance;
+      const balances = deltas.map((d) => (running += d));
+      const minBalance = balances.length ? Math.min(...balances) : currentBalance;
+      const firstNegativeIdx = balances.findIndex((b) => b < 0);
+
+      return {
+        id: conta.id,
+        name: conta.name,
+        context: conta.context,
+        color: conta.color,
+        currentBalance,
+        balances,
+        minBalance,
+        firstNegativeLabel: firstNegativeIdx >= 0 ? meses[firstNegativeIdx].label : null,
+      };
+    });
+
+    return NextResponse.json({ months, data, accounts });
   } catch (error) {
     console.error("Erro GET Projeções:", error);
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
