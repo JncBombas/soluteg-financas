@@ -158,6 +158,15 @@ export async function POST(req: Request) {
           }
         });
 
+        // Primeiro vencimento (boleto/pix/etc.): o próximo dia `dueDay` em ou
+        // após a data da compra. Sem isso, comprar dia 29 com vencimento dia 5
+        // geraria a 1ª parcela vencida no dia 5 do mês corrente (no passado).
+        const baseVenc = new Date(purchaseDate);
+        if (data.dueDay) {
+          baseVenc.setDate(data.dueDay);
+          if (baseVenc < purchaseDate) baseVenc.setMonth(baseVenc.getMonth() + 1);
+        }
+
         const installmentsData = [];
         for (let i = 0; i < data.installments!; i++) {
           const installDate = new Date(purchaseDate);
@@ -166,9 +175,11 @@ export async function POST(req: Request) {
           let dueDate;
           if (data.paymentMethod === "CREDIT" && cardData) {
             dueDate = calcularDueDate(installDate, cardData.closingDay, cardData.dueDay);
+          } else if (data.dueDay) {
+            dueDate = new Date(baseVenc);
+            dueDate.setMonth(baseVenc.getMonth() + i);
           } else {
             dueDate = new Date(installDate);
-            if (data.dueDay) dueDate.setDate(data.dueDay);
           }
 
           installmentsData.push({
@@ -224,13 +235,26 @@ export async function POST(req: Request) {
           }
         });
 
+        // Primeiro vencimento mensal: próximo dia `dueDay` em ou após a data de
+        // início, para a 1ª ocorrência não cair no passado (ex.: início dia 29,
+        // vencimento dia 5 cairia no dia 5 do mês corrente).
+        const baseVenc = new Date(startDate);
+        if (data.dueDay) {
+          baseVenc.setDate(data.dueDay);
+          if (baseVenc < startDate) baseVenc.setMonth(baseVenc.getMonth() + 1);
+        }
+
         const occurrencesData = [];
         for (let i = 0; i < data.occurrences!; i++) {
-          const dueDate = new Date(startDate);
+          let dueDate = new Date(startDate);
 
           if (data.frequency === "MONTHLY") {
-            dueDate.setMonth(dueDate.getMonth() + i);
-            if (data.dueDay) dueDate.setDate(data.dueDay);
+            if (data.dueDay) {
+              dueDate = new Date(baseVenc);
+              dueDate.setMonth(baseVenc.getMonth() + i);
+            } else {
+              dueDate.setMonth(dueDate.getMonth() + i);
+            }
           } else if (data.frequency === "WEEKLY") {
             dueDate.setDate(dueDate.getDate() + i * 7);
           } else if (data.frequency === "YEARLY") {
