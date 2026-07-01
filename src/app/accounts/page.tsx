@@ -1,7 +1,7 @@
 "use client";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Pencil, Trash2, Loader2, X, Wallet } from "lucide-react";
 import { useFinanceContext } from "@/lib/useFinanceContext";
 import { TransferModal } from "@/components/TransferModal";
@@ -50,6 +50,7 @@ export default function AccountsPage() {
   const [form, setForm] = useState(initialForm);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const { context: globalContext } = useFinanceContext();
+  const formRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchAccounts();
@@ -92,6 +93,7 @@ export default function AccountsPage() {
     setEditingAccount(account);
     setShowForm(true);
     setError(null);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
 
   const handleSave = async () => {
@@ -196,7 +198,7 @@ export default function AccountsPage() {
       )}
 
       {showForm && (
-        <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
+        <div ref={formRef} className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
           <h3 style={{ marginBottom: '1.5rem' }}>{editingAccount ? "Editar Conta" : "Nova Conta"}</h3>
 
           <div style={{ marginBottom: '1.5rem' }}>

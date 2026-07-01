@@ -1,7 +1,7 @@
 "use client";
 
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CreditCard, Plus, Pencil, Trash2, Loader2, X } from "lucide-react";
 import { useFinanceContext } from "@/lib/useFinanceContext";
 
@@ -78,6 +78,7 @@ export default function CardsPage() {
 
   const [form, setForm] = useState(initialForm);
   const { context: globalContext } = useFinanceContext();
+  const formRef = useRef<HTMLDivElement>(null);
 
   const [step, setStep] = useState<1 | 2>(1);
   const [newCardId, setNewCardId] = useState<string | null>(null);
@@ -119,6 +120,7 @@ export default function CardsPage() {
     setEditingCard(card);
     setShowForm(true);
     setError(null);
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   };
 
   const resetForm = () => {
@@ -140,16 +142,21 @@ export default function CardsPage() {
       const url = editingCard ? `/api/credit-cards/${editingCard.id}` : "/api/credit-cards";
       const method = editingCard ? "PUT" : "POST";
       
+      const payload: any = {
+        name: form.name,
+        brand: form.brand,
+        closingDay: parseInt(form.closingDay),
+        dueDay: parseInt(form.dueDay),
+        limit: parseFloat(form.limit.replace(',', '.')),
+        color: form.color,
+        context: form.context,
+      };
+      if (form.lastFourDigits) payload.lastFourDigits = form.lastFourDigits;
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          closingDay: parseInt(form.closingDay),
-          dueDay: parseInt(form.dueDay),
-          limit: parseFloat(form.limit.replace(',', '.')),
-          context: form.context
-        }),
+        body: JSON.stringify(payload),
       });
       
       if (res.ok) {
@@ -317,7 +324,7 @@ export default function CardsPage() {
       )}
 
       {showForm && (
-        <div className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
+        <div ref={formRef} className="glass-card" style={{ padding: '2rem', marginBottom: '2rem' }}>
           {step === 1 ? (
             <>
               <h3 style={{ marginBottom: '1.5rem' }}>{editingCard ? "Editar Cartão" : "Novo Cartão"}</h3>
