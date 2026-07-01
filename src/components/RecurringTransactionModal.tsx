@@ -240,7 +240,7 @@ export function RecurringTransactionModal({ isOpen, onClose, onSuccess, editExpe
           </div>
           <div>
             <label style={labelStyle}>Dia do Vencimento*</label>
-            <input type="number" min="1" max="28" placeholder="Ex: 5" className="input-field" value={dueDay} onChange={e => setDueDay(e.target.value)} />
+            <input type="number" min="1" max="31" placeholder="Ex: 5" className="input-field" value={dueDay} onChange={e => setDueDay(e.target.value)} />
           </div>
           <div>
             <label style={labelStyle}>Frequência</label>

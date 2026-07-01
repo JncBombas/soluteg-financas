@@ -22,7 +22,7 @@ export const NewTransactionSchema = z.object({
   context: z.enum(["PF", "PJ"]).default("PF"),
   transactionMode: z.enum(["SINGLE", "INSTALLMENT", "RECURRING"]),
   installments: z.number().int().min(2).max(72).optional(),
-  dueDay: z.number().int().min(1).max(28).optional(),
+  dueDay: z.number().int().min(1).max(31).optional(),
   occurrences: z.number().int().min(1).max(120).optional(),
   frequency: z.enum(["MONTHLY", "WEEKLY", "YEARLY"]).optional(),
 });
@@ -86,7 +86,7 @@ export const RecurringTransactionSchema = z.object({
   type: z.enum(["INCOME", "EXPENSE"]).default("EXPENSE"),
   isVariable: z.boolean().default(false),
   paymentMethod: z.enum(["CASH", "DEBIT", "CREDIT", "PIX", "BOLETO", "TRANSFER"]).default("BOLETO"),
-  dueDay: z.number().int().min(1).max(28),
+  dueDay: z.number().int().min(1).max(31),
   frequency: z.enum(["MONTHLY", "WEEKLY", "YEARLY"]).default("MONTHLY"),
   startDate: z.string(),
   endDate: z.string().optional().nullable(),

@@ -388,7 +388,7 @@ export function TransactionModal({ isOpen, onClose, onSuccess, editTransaction }
             {showDueDay && (
               <div style={{ flex: 1 }}>
                 <label style={{ display: 'block', marginBottom: '0.3rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Dia do Vencimento</label>
-                <input type="number" min="1" max="28" placeholder="Ex: 5" className="input-field" value={dueDay} onChange={e => setDueDay(e.target.value)} />
+                <input type="number" min="1" max="31" placeholder="Ex: 5" className="input-field" value={dueDay} onChange={e => setDueDay(e.target.value)} />
               </div>
             )}
             {paymentMethod === "CREDIT" && (
@@ -415,7 +415,7 @@ export function TransactionModal({ isOpen, onClose, onSuccess, editTransaction }
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '0.3rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Vencimento</label>
-              <input type="number" min="1" max="28" placeholder="Dia" className="input-field" value={dueDay} onChange={e => setDueDay(e.target.value)} />
+              <input type="number" min="1" max="31" placeholder="Dia" className="input-field" value={dueDay} onChange={e => setDueDay(e.target.value)} />
             </div>
           </div>
         )}
