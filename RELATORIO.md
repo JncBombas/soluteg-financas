@@ -73,8 +73,8 @@ Antes, "recorrência" materializava todas as ocorrências de uma vez, poluindo o
 
 Sem estes passos, as telas novas falham (o código espera as colunas novas) e os alertas não disparam. Detalhes em `docs/despesas-fixas-deploy.md`.
 
-- [ ] **Aplicar o schema no banco:** `npx prisma db push` (aplica os modelos novos **e** a migração `Decimal` do P6). SQL manual alternativo do P6 em `prisma/migrations-manual/decimal_money.sql`.
-- [ ] **Gerar chaves VAPID** (`npx web-push generate-vapid-keys --json`) e setar no `.env` do servidor: `VAPID_PUBLIC_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (mesma pública), `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET`.
+- [x] **Aplicar o schema no banco:** `npx prisma db push` (aplica os modelos novos **e** a migração `Decimal` do P6). SQL manual alternativo do P6 em `prisma/migrations-manual/decimal_money.sql`.
+- [x] **Gerar chaves VAPID** (`npx web-push generate-vapid-keys --json`) e setar no `.env` do servidor: `VAPID_PUBLIC_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (mesma pública), `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET`.
 - [ ] **Agendar o crontab diário** chamando `/api/cron/daily` com `Authorization: Bearer $CRON_SECRET`.
 - [ ] **Build/restart** do app. Push exige HTTPS; no **iOS** exige o app instalado na tela inicial.
 
